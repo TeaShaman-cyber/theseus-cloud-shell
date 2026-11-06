@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+"""Offline, deterministic Cloud Shell source-contract check. No credentials/network."""
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+NEEDED = [
+    "README.md", "AGENTS.md", "RULES.md",
+    "skills/exe-dev-core-router/SKILL.md",
+    "providers/exe-dev/README.md",
+    "providers/sprites/README.md",
+    "providers/marcopolo/README.md",
+    "modules/github/README.md",
+    "docs/repository-map.md",
+    ".github/workflows/repository-map.yml",
+]
+assert not [p for p in NEEDED if not (ROOT / p).is_file()], "missing required source paths"
+rules = (ROOT / "RULES.md").read_text()
+skill = (ROOT / "skills/exe-dev-core-router/SKILL.md").read_text()
+assert "Project Contract" in rules and "exe.dev" in rules
+assert skill.startswith("---\nname: exe-dev-core-router\n")
+assert "NOT_EXPOSED" in skill
+assert "get_cli_help" in skill and "run_vm_command" in skill
+assert "MCP" in skill and "readback" in skill
+assert "GH_TOKEN" not in skill and "oauth_token:" not in skill
+map_wf = (ROOT / ".github/workflows/repository-map.yml").read_text()
+assert "dekko==1.9.0" in map_wf
+assert "TRACKED_FILES.txt" in map_wf
+assert "derived-non-authoritative" in map_wf
+assert "persist-credentials: false" in map_wf
+assert "SOURCE_SHA" in map_wf
+assert "github.com/TeaShaman-cyber/theseus-research" in (ROOT / "README.md").read_text()
+print(json.dumps({"status": "PASS", "required_paths": len(NEEDED), "map": "non-authoritative"}, sort_keys=True))
