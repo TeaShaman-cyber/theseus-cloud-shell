@@ -1,0 +1,57 @@
+name: repository-map
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/repository-map.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify source identity
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned offline map generator
+        run: python -m pip install --disable-pip-version-check --quiet 'dekko==1.9.0'
+      - name: Build derived navigation map
+        shell: bash
+        run: |
+          set -euo pipefail
+          dekko map
+          mkdir -p repository-map
+          dekko summary > repository-map/SUMMARY.txt
+          cp .dekko/MAP.md repository-map/MAP.md
+          cp .dekko/map.json repository-map/map.json
+          git ls-files > repository-map/TRACKED_FILES.txt
+          printf 'source_sha=%s\ngenerator=dekko==1.9.0\nauthority=derived-non-authoritative\n' "$SOURCE_SHA" > repository-map/METADATA.txt
+          test -s repository-map/SUMMARY.txt
+          test -s repository-map/MAP.md
+          test -s repository-map/map.json
+          grep -Fqx 'skills/exe-dev-core-router/SKILL.md' repository-map/TRACKED_FILES.txt
+          grep -Fqx 'providers/exe-dev/README.md' repository-map/TRACKED_FILES.txt
+          test -z "$(git status --porcelain --untracked-files=no)"
+      - name: Upload map as non-gating, non-authoritative artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-shell-repository-map-${{ env.SOURCE_SHA }}
+          path: repository-map/
+          retention-days: 14
+          if-no-files-found: error
