@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+export PYTHONPATH="/home/exedev/.local/lib${PYTHONPATH:+:$PYTHONPATH}"
+exec /home/exedev/.local/share/theseus/arcade-sdk/bin/python "$@"
