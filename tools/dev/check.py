@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Offline, deterministic Cloud Shell source-contract check. No credentials/network."""
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -8,6 +10,8 @@ NEEDED = [
     "README.md", "AGENTS.md", "RULES.md",
     "skills/exe-dev-core-router/SKILL.md",
     "providers/exe-dev/README.md",
+    "providers/exe-dev/session_search_drive.py",
+    "tests/test_session_search_drive.py",
     "providers/sprites/README.md",
     "providers/marcopolo/README.md",
     "modules/github/README.md",
@@ -30,4 +34,10 @@ assert "derived-non-authoritative" in map_wf
 assert "persist-credentials: false" in map_wf
 assert "SOURCE_SHA" in map_wf
 assert "github.com/TeaShaman-cyber/theseus-research" in (ROOT / "README.md").read_text()
-print(json.dumps({"status": "PASS", "required_paths": len(NEEDED), "map": "non-authoritative"}, sort_keys=True))
+result = subprocess.run(
+    [sys.executable, "-m", "unittest", "tests.test_session_search_drive"],
+    cwd=ROOT,
+    check=False,
+)
+assert result.returncode == 0, "session search recovery adapter tests failed"
+print(json.dumps({"status": "PASS", "required_paths": len(NEEDED), "map": "non-authoritative", "tests": "PASS"}, sort_keys=True))
