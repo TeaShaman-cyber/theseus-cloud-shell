@@ -7,7 +7,7 @@ Status on 2026-11-07: **preferred governed Linux shell candidate**, under seven-
 Observed current state on `theseus-exe-shell-probe`:
 
 - **GitHub:** native `gh` OAuth is stored in GNOME Secret Service, not inline in `~/.config/gh/hosts.yml`. A real reboot verified automatic headless keyring unlock, `gh api`, private HTTPS Git and ordinary `git ls-remote`.
-- **Neon:** exe.dev catalog integration `neon` is attached to the VM and the Neon management API returned HTTP 200 in the accepted probe. This is management-plane access only; it does **not** imply raw Postgres/SQL credentials or permission to expose Session Search corpus rows.
+- **Neon:** exe.dev catalog integration `neon` is attached to the VM and injects the Neon management credential at `https://neon.int.exe.xyz`; no Neon API key is stored in the guest. On 2026-11-07 the management API returned HTTP 200, the connection-URI endpoint returned a PostgreSQL URI without printing it, installed `/bin/psql` connected successfully, and `psql -f` executed a read-only SQL file. Database authority still comes from the selected Postgres role; this capability does **not** authorize exposing Session Search corpus rows. See [Neon SQL via provider proxy](#neon-sql-via-provider-proxy-2026-11-07) and [cloud-shell issue #10](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/10).
 - **Turso Platform API:** exe.dev integration `turso` is attached and read-only management-plane GETs succeeded on 2026-11-07. `GET /v1/organizations` and `GET /v1/organizations/{slug}/databases` both returned HTTP 200; the account exposed one organization and zero databases. This verifies management inventory, **not** SQL access, FTS5/libSQL compatibility, token minting, or native Turso MCP OAuth support. See [the bounded Turso probe](#turso-management-api-via-exedev-2026-11-07) and [cloud-shell issue #6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6).
 - **Azure control plane:** official Azure CLI 2.92.0 is installed from the Microsoft Ubuntu repository. Dedicated service principal `theseus-exe-operator` (`appId 9d03ca4c-53e1-4b57-9acf-728d4985457d`) has Azure RBAC `Owner` at subscription scope `/subscriptions/d760fa4b-978b-4b6d-a62e-93b55bc36746`. This is the explicitly authorized full Azure operator identity for the cloud shell; the narrower existing Translator workload identity remains unchanged.
 - **Azure certificate/keyring:** the service-principal private key was generated on this exe.dev VM and never transferred to the laptop or chat. The combined private-key + public-certificate PEM is stored in GNOME Secret Service under `app=theseus, credential=azure-exe-operator`; only the public certificate was uploaded through the already authenticated Windows Azure CLI. Certificate SHA-256 fingerprint is `A8:61:CD:48:39:6A:AF:89:63:D1:E6:15:9A:81:87:F7:DA:F1:2D:D0:AC:96:E4:A6:56:B3:28:5E:DD:FC:AE:86`, expiring 2028-11-06 UTC.
@@ -28,6 +28,32 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Known boundary:** the headless keyring unlock uses host-encrypted `systemd-creds` material. Root on this VM can decrypt it; no TPM-backed guarantee is claimed. Reboot persistence is VERIFIED on this host, while pause/cold-resume, VM migration and recovery on a replacement host remain UNKNOWN.
 
 The detailed acceptance trail, including the initial Google helper bug and the later Grafana/gcx reboot acceptance, is recorded in [Theseus Research #112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). Session Search observability design, telemetry privacy, dashboard ownership and TraceQL semantics remain tracked in [Session Search #109](https://github.com/TeaShaman-cyber/theseus-session-search-lab/issues/109).
+
+## Neon SQL via provider proxy (2026-11-07)
+
+Route: `ChatGPT -> exe.dev MCP run_vm_command -> verified VM -> https://neon.int.exe.xyz -> Neon management API -> ephemeral connection URI -> /bin/psql -> PostgreSQL`.
+
+**FACT / observed:** Reflection reports the `neon` catalog integration with credentials injected by the provider proxy. `GET /api/v2/projects` returned HTTP 200. On an isolated Session Search benchmark branch, `GET /api/v2/projects/{project_id}/connection_uri?...` returned a standard PostgreSQL URI; the URI itself was never printed. `/bin/psql` then connected to the requested database and a second probe successfully executed a read-only `.sql` file with `psql -f`.
+
+**Credential boundary:** the Neon API credential remains provider-side. The returned database URI contains a Postgres role password and must be treated as ephemeral secret material: keep it only in process/shell memory for the duration of the command, do not echo it, write it to Git, logs, receipts, command-line documentation or persistent config. No dedicated Neon API key, Neon CLI login, or GNOME-Keyring credential is currently required in the VM.
+
+**Authority boundary:** the provider integration can obtain connection material, but the selected Postgres role still determines database authority. Existing capability roles and project-specific change control remain authoritative. Connection success does not authorize arbitrary DDL/DML or disclosure of private corpus rows.
+
+**Repo-native SQL path:** use a version-controlled SQL file as the input and `psql -f`, rather than copying a long SQL body through an MCP/JSON payload. A bounded pattern is:
+
+    set -euo pipefail
+    uri_json="$(mktemp)"
+    trap 'rm -f "$uri_json"' EXIT
+    curl -fsS       "https://neon.int.exe.xyz/api/v2/projects/$PROJECT_ID/connection_uri?branch_id=$BRANCH_ID&database_name=$DATABASE_NAME&role_name=$ROLE_NAME&pooled=false"       -o "$uri_json"
+    uri="$(jq -er '.uri' "$uri_json")"
+    PGCONNECT_TIMEOUT=10 psql "$uri" -X -v ON_ERROR_STOP=1 -f path/to/versioned.sql
+    unset uri
+
+Callers must source `PROJECT_ID`, `BRANCH_ID`, `DATABASE_NAME`, and `ROLE_NAME` from the authorized project workflow rather than hard-code remembered runtime identities. For migrations requiring a capability role, use the already-authorized Postgres role transition (for example `SET LOCAL ROLE ...`) rather than creating or broadening credentials merely to run the migration.
+
+**Current disposition:** `NEON_INTEGRATION_ATTACHED=VERIFIED`; `MANAGEMENT_API=VERIFIED`; `CONNECTION_URI=VERIFIED`; `PSQL_DIRECT_CONNECT=VERIFIED`; `PSQL_FILE_EXECUTION=VERIFIED`; `SEPARATE_NEON_CLI_KEYRING=NOT_NEEDED_CURRENTLY`. Revisit a dedicated CLI/keyring only if the provider proxy cannot support a required operation or if a later workflow needs an independent credential boundary.
+
+Evidence / coordination: [theseus-cloud-shell#10](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/10).
 
 ## Turso management API via exe.dev (2026-11-07)
 
