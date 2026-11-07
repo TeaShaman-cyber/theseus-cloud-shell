@@ -112,3 +112,27 @@ No desktop login exists. Ubuntu GNOME Keyring was configured for automatic unloc
 User confirmed a 7-day trial; live account billing and exact final charges are **UNKNOWN** from the exposed MCP tools. Provider pause/resume cannot currently be invoked directly from this MCP: standby lifecycle still **NOT_TESTED**, not equivalent to reboot. Prefer one VM and short work until plan limits and acceptance are confirmed.
 
 **Next capacity-specific gap:** an authorized account-admin route for lifecycle/billing or explicit NOT_EXPOSED disposition. No duplicate MCP bus or self-written OAuth system by default.
+
+## Session Search accepted-corpus recovery handoff
+
+Coordination: `TeaShaman-cyber/theseus-session-search-lab#211` and this repository issue #12.
+
+The exe.dev adapter source is `providers/exe-dev/session_search_drive.py`. It reuses the existing keyring-backed Google OAuth route and the Session Search repo-native handoff validator; it does not define corpus authority itself.
+
+Recovery route:
+
+```text
+current Drive pointer (discovered by protocol property)
+  -> immutable recovery receipt
+  -> exact projection + accepted-evidence Drive objects
+  -> byte/hash readback
+  -> decode projection according to receipt encoding
+  -> session_search.recovery_handoff verify-local
+  -> private local corpus lock
+```
+
+The pointer is discovered by Drive custom property (`theseus_recovery_kind=session-search-current-v1`), not by a corpus filename, date, row count, or remembered Drive ID. Zero or multiple pointers fail closed.
+
+Publication is the final acceptance step for a newly verified corpus. The adapter first re-downloads the already staged projection/evidence objects and verifies their exact identities, uploads and reads back an immutable receipt, then updates the single current pointer. Existing pointer bytes are retained before update; a mismatched post-update readback triggers restoration and verification of the previous pointer. Publication finishes only after a fresh-runtime-style recovery probe recreates a valid local corpus lock.
+
+Provider-specific Drive IDs, hashes, private filenames, OAuth tokens and corpus contents are never printed by the adapter or committed here. Accepted evidence remains authority; Drive remains private recovery transport.
