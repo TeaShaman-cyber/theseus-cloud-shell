@@ -52,7 +52,24 @@ Evidence / coordination: [theseus-cloud-shell#6](https://github.com/TeaShaman-cy
 ## Actual ChatGPT MCP surface
 
 Executable: `get_cli_help`, `list_vms`, `create_vm`, `run_vm_command`.
-NOT EXPOSED: `pause`, `resume`, `billing` as first-class ChatGPT MCP actions. Account-level integration administration may be reachable only through a separately verified administrative route; do not infer availability from CLI help alone.
+NOT EXPOSED **as direct ChatGPT MCP actions**: `pause`, `resume`, `billing`, `integrations add/list/attach/test`. This does **not** mean exe.dev account controls are unavailable to us: when the provider-native `exe` integration is attached to the selected VM, it supplies an authenticated account-control bridge at `https://exe.int.exe.xyz/exec`. Do not try nested `ssh exe.dev` as a prerequisite, and do not infer account-level unavailability from the four MCP actions alone.
+
+### Provider-native account control from inside the VM (2026-11-07)
+
+Live target `theseus-exe-shell-probe` was confirmed running. Reflection lists `exe` and `turso` attached; direct POST from the VM to `https://exe.int.exe.xyz/exec` succeeded for `whoami --json`, `integrations list --json` (11 configured entries), and `integrations catalog upstash --json` (Upstash available). This is independently checked current evidence, not simply an advertised CLI command.
+
+Safe read-only verification, using bounded output and no secret fields:
+
+```bash
+curl -fsS https://reflection.int.exe.xyz/integrations |
+  jq -e '[.integrations[].name] | index("exe") != null'
+curl -fsS -X POST https://exe.int.exe.xyz/exec   --data-raw 'integrations list --json' |
+  jq -c 'if type == "array" then {"count":length} else {"keys":keys} end'
+curl -fsS -X POST https://exe.int.exe.xyz/exec   --data-raw 'integrations catalog upstash --json' |
+  jq -c 'if type == "array" then {"count":length} else {"keys":keys} end'
+```
+
+Boundaries: `exe` is a provider-held delegated integration, so it must be re-probed on each VM and used within its actual granted authority. Keep all integration credentials provider-side, never in ChatGPT output, the VM environment, command strings, Git or logs. Current Upstash catalog requires a concrete database `subdomain` and secret REST `token`. Seeing a catalog entry is **not** evidence of an Upstash database or attached integration; no Redis resource or key has been created. The original guest `ssh exe.dev` permission denial and laptop SSH registration prompt were irrelevant to this functioning bridge. See Theseus Research #112 and cloud-shell issue #8.
 
 For commands: use bounded calls and verify guest exit and external target readback. Failed composition/host filtering is not guest failure; do not repeat an uncertain stateful operation blindly.
 

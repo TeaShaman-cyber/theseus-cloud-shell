@@ -4,6 +4,7 @@
 
 1. Route work to the thinnest available governed shell. Prefer **exe.dev** when its *live* MCP/VM capability fits. Fly Sprites then MarcoPolo are justified fallbacks, not mandatory hops.
 2. Identify the VM from current `list_vms`; a remembered name, URL, or cached capability is not proof of the correct target.
+2a. When the provider-native `exe` integration is attached to the selected VM, exe.dev account-control commands are available through the guest HTTPS bridge `https://exe.int.exe.xyz/exec`; verify with a safe read-only POST and preserve permission boundaries. Missing ChatGPT MCP `exec` or failed nested `ssh exe.dev` does not prove the bridge unavailable. See `providers/exe-dev/README.md`.
 3. Differentiate MCP control-plane failure, guest process/exit, GitHub/API response and authoritative target readback. After an ambiguous stateful failure, inspect before retrying. Bound stdout and command size.
 4. Native `git`/`gh` OAuth, provider-integrated GitHub, administrator SSH/API, the guest OS keyring and rotating OAuth refresh tokens are **separate** surfaces. Do not expose secrets in model output, Git, command args, or logs.
 5. `get_cli_help` is documentation, not execution. Never claim exe.dev `pause/resume`, billing or integration administration is reachable via MCP without live evidence. Direct guest SSH cannot stand in for provider-admin SSH.
