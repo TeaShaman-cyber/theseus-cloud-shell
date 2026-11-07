@@ -8,6 +8,7 @@ Observed current state on `theseus-exe-shell-probe`:
 
 - **GitHub:** native `gh` OAuth is stored in GNOME Secret Service, not inline in `~/.config/gh/hosts.yml`. A real reboot verified automatic headless keyring unlock, `gh api`, private HTTPS Git and ordinary `git ls-remote`.
 - **Neon:** exe.dev catalog integration `neon` is attached to the VM and the Neon management API returned HTTP 200 in the accepted probe. This is management-plane access only; it does **not** imply raw Postgres/SQL credentials or permission to expose Session Search corpus rows.
+- **Turso Platform API:** exe.dev integration `turso` is attached and read-only management-plane GETs succeeded on 2026-11-07. `GET /v1/organizations` and `GET /v1/organizations/{slug}/databases` both returned HTTP 200; the account exposed one organization and zero databases. This verifies management inventory, **not** SQL access, FTS5/libSQL compatibility, token minting, or native Turso MCP OAuth support. See [the bounded Turso probe](#turso-management-api-via-exedev-2026-11-07) and [cloud-shell issue #6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6).
 - **Azure control plane:** official Azure CLI 2.92.0 is installed from the Microsoft Ubuntu repository. Dedicated service principal `theseus-exe-operator` (`appId 9d03ca4c-53e1-4b57-9acf-728d4985457d`) has Azure RBAC `Owner` at subscription scope `/subscriptions/d760fa4b-978b-4b6d-a62e-93b55bc36746`. This is the explicitly authorized full Azure operator identity for the cloud shell; the narrower existing Translator workload identity remains unchanged.
 - **Azure certificate/keyring:** the service-principal private key was generated on this exe.dev VM and never transferred to the laptop or chat. The combined private-key + public-certificate PEM is stored in GNOME Secret Service under `app=theseus, credential=azure-exe-operator`; only the public certificate was uploaded through the already authenticated Windows Azure CLI. Certificate SHA-256 fingerprint is `A8:61:CD:48:39:6A:AF:89:63:D1:E6:15:9A:81:87:F7:DA:F1:2D:D0:AC:96:E4:A6:56:B3:28:5E:DD:FC:AE:86`, expiring 2028-11-06 UTC.
 - **Azure runtime wrapper:** versioned source `providers/exe-dev/az-owner` is projected as `/home/exedev/.local/bin/az-owner`. Every invocation retrieves the PEM from Secret Service, materializes it only below `/run/user/1000`, creates a temporary `AZURE_CONFIG_DIR` on the same tmpfs, performs certificate-based service-principal login for the fixed tenant/subscription, runs the requested `az` command, then removes the temporary PEM and Azure CLI cache. Persistent `~/.azure` is absent after accepted runs.
@@ -28,6 +29,26 @@ Observed current state on `theseus-exe-shell-probe`:
 
 The detailed acceptance trail, including the initial Google helper bug and the later Grafana/gcx reboot acceptance, is recorded in [Theseus Research #112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). Session Search observability design, telemetry privacy, dashboard ownership and TraceQL semantics remain tracked in [Session Search #109](https://github.com/TeaShaman-cyber/theseus-session-search-lab/issues/109).
 
+## Turso management API via exe.dev (2026-11-07)
+
+Route (read-only acceptance): `ChatGPT -> exe.dev MCP run_vm_command -> verified theseus-exe-shell-probe VM -> https://turso.int.exe.xyz -> Turso Platform API`.
+
+**FACT / observed:** The VM was RUNNING; its Reflection integration list included `turso`. The platform returned HTTP 200 for organization inventory (one organization) and for the organization's database inventory (`{"databases": []}`, zero databases). No data definition, token issuance, DB creation, SQL statement, or provider credential retrieval was attempted.
+
+**Capability boundary:** This exe.dev HTTP proxy carries the **Turso Platform API management credential** at the provider network boundary; our guest commands supplied no secret and printed only counts/statuses. The management API path is **not a database SQL endpoint**. Actual SQL requires an existing Turso database and separately authorized DB credentials/access over a database URL (not proven here). Hosted Turso MCP authorization from ChatGPT is a different OAuth/client-compatibility problem.
+
+**Small safe re-probe**, after fresh `list_vms` establishes the target VM identity. Execute this within the selected VM; it reads organization/database inventory and prints counts without names or tokens:
+
+```bash
+set -euo pipefail
+org_slug="$(curl -fsS --max-time 15 https://turso.int.exe.xyz/v1/organizations | jq -er '.[0].slug')"
+curl -fsS --max-time 15 "https://turso.int.exe.xyz/v1/organizations/${org_slug}/databases" | jq -e '{database_count: (.databases | length)}'
+unset org_slug
+```
+
+**Current disposition:** `TURSO_INTEGRATION_ATTACHED=VERIFIED`; `PLATFORM_API_ORGANIZATIONS=VERIFIED`; `PLATFORM_API_DATABASE_LIST=VERIFIED`; `DATABASE_SQL=UNKNOWN_NOT_TESTED`; `FTS5_LIBSQL=UNKNOWN_NOT_TESTED`; `DB_TOKEN_MINT=UNKNOWN_NOT_TESTED`; `CHATGPT_NATIVE_TURSO_OAUTH=SEPARATE_UNVERIFIED`. With **zero databases**, further SQL tests would first require explicit project scope/permission and a database lifecycle plan; do not create a database only to turn a checklist green.
+
+Evidence / coordination: [theseus-cloud-shell#6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6), parent exe.dev trial [theseus-research#112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). This is provider/runtime-specific evidence, not Session Search architecture approval or an assertion of global persistence.
 ## Actual ChatGPT MCP surface
 
 Executable: `get_cli_help`, `list_vms`, `create_vm`, `run_vm_command`.
