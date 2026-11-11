@@ -1,6 +1,6 @@
 # exe.dev provider adapter
 
-Status on 2026-11-07: **preferred governed Linux shell candidate**, under seven-day user-confirmed trial. Not yet a permanent production identity. Existing VM `theseus-exe-shell-probe`: Ubuntu 24.04, 2 vCPU, 4 GiB RAM, 20 GiB disk, Frankfurt. Reprobe before action.
+Status on 2026-11-11: **preferred governed Linux shell candidate**. Live plan/trial/billing state is not inferred from historical trial timing and must be reprobed through an authorized current account surface when it matters. Existing VM `theseus-exe-shell-probe` has been the verified working target; always use `list_vms` before action rather than treating that name as permanent authority.
 
 ## Current infrastructure
 
@@ -14,8 +14,8 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Azure runtime wrapper:** versioned source `providers/exe-dev/az-owner` is projected as `/home/exedev/.local/bin/az-owner`. Every invocation retrieves the PEM from Secret Service, materializes it only below `/run/user/1000`, creates a temporary `AZURE_CONFIG_DIR` on the same tmpfs, performs certificate-based service-principal login for the fixed tenant/subscription, runs the requested `az` command, then removes the temporary PEM and Azure CLI cache. Persistent `~/.azure` is absent after accepted runs.
 - **Azure acceptance:** independent Windows-side readback verified `ServicePrincipal / Owner` at subscription scope. On exe.dev, `az-owner account show` reports the intended enabled subscription/tenant with `user.type=servicePrincipal`, `az-owner resource list` returns the current inventory, and `az-owner role assignment list` reads back `Owner`. After a real VM reboot the GNOME keyring remained unlocked and all checks passed again with `~/.azure` absent and zero `theseus-azure-owner-*` tmpfs leftovers.
 - **Google Drive corpus transport:** Google Cloud SDK 592.0.0 is installed. User OAuth was granted with `gcloud auth login --enable-gdrive-access`. The one-time login staging directory lived under `/run/user/1000` on tmpfs. The resulting Google credential was moved into the existing GNOME Secret Service login keyring.
-- **Keyring-backed gcloud:** runtime helper `/home/exedev/.local/bin/gcloud-keyring` reconstructs `credentials.db` only in a temporary directory under `/run/user/1000`, invokes `gcloud` with the explicit stored account, then removes the temporary directory. Persistent `~/.config/gcloud/credentials.db`, `access_tokens.db`, and `application_default_credentials.json` are absent.
-- **Drive acceptance:** direct Google Drive API `drive/v3/about` returned HTTP 200 before and after a real VM reboot. After reboot the login keyring was independently observed as unlocked, the Google credential was present, keyring-backed access-token mint succeeded, and persistent gcloud credential files remained absent.
+- **Keyring-backed gcloud:** canonical runtime helper `/home/exedev/.local/bin/gcloud-keyring` reconstructs the credential-bearing gcloud state only in a temporary directory under `/run/user/1000`, invokes `gcloud` with the explicit stored account, then removes that temporary directory. The security invariant is **no persistent credential/token material in the default gcloud state**; plain diagnostic calls may create empty SQLite schema files under `~/.config/gcloud`. ADC remains absent. Do not use literal file nonexistence as the auth canary.
+- **Drive acceptance:** direct Google Drive API `drive/v3/about` returned HTTP 200 before and after a real VM reboot. Fresh 2026-11-11 readback again confirmed the absolute-path `gcloud-keyring` helper can mint an access token and Drive `/about` returns HTTP 200 without exposing the token. Nested `bash -lc` was observed to reset PATH and hide `~/.local/bin`; use the governed helper path or verify the effective inner-shell PATH. Read-only inspection of default `credentials.db` / `access_tokens.db` found zero credential/token rows; empty schema files are not credential drift.
 - **Grafana Cloud observability:** official Grafana `gcx` 1.7.1 is installed at `/home/exedev/.local/share/theseus/gcx/bin/gcx` and projected as `/home/exedev/.local/bin/gcx`. The archive and extracted binary were checked against the same pinned SHA-256 values already versioned in `TeaShaman-cyber/marcopolo-cookbook` issue #133 / `grafana/gcx.sh`.
 - **Grafana OAuth/keyring:** context `tealaphid71` uses browser OAuth with `GCX_KEYCHAIN=on`. `~/.config/gcx/config.yaml` is mode 0600; read-only inspection found the OAuth field names but no obvious inline token/refresh-token values. Authentication depends on the same GNOME Secret Service login keyring rather than the MarcoPolo-era `GCX_KEYCHAIN=off` plaintext fallback.
 - **Grafana acceptance:** `gcx config check` is online, `gcx dashboards get session-search-candidate` succeeds, and a real Tempo TraceQL metrics query against `grafanacloud-traces` returned nonzero Session Search series. After a real reboot, the keyring remained unlocked and all three checks passed again without re-login.
@@ -75,6 +75,24 @@ unset org_slug
 **Current disposition:** `TURSO_INTEGRATION_ATTACHED=VERIFIED`; `PLATFORM_API_ORGANIZATIONS=VERIFIED`; `PLATFORM_API_DATABASE_LIST=VERIFIED`; `DATABASE_SQL=UNKNOWN_NOT_TESTED`; `FTS5_LIBSQL=UNKNOWN_NOT_TESTED`; `DB_TOKEN_MINT=UNKNOWN_NOT_TESTED`; `CHATGPT_NATIVE_TURSO_OAUTH=SEPARATE_UNVERIFIED`. With **zero databases**, further SQL tests would first require explicit project scope/permission and a database lifecycle plan; do not create a database only to turn a checklist green.
 
 Evidence / coordination: [theseus-cloud-shell#6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6), parent exe.dev trial [theseus-research#112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). This is provider/runtime-specific evidence, not Session Search architecture approval or an assertion of global persistence.
+### Routing summary: direct MCP vs provider-native control
+
+The current control model is intentionally two-layered:
+
+```text
+ChatGPT exe.dev MCP
+  -> list_vms / create_vm / run_vm_command / get_cli_help
+  -> selected guest
+
+selected guest + attached provider integration
+  -> https://exe.int.exe.xyz/exec       # exe.dev account control
+  -> https://<service>.int.exe.xyz/...  # provider-held service credential/proxy
+```
+
+Therefore, **not exposed as a direct MCP action != unavailable**. For account-control work, first confirm the live VM and that the provider-native `exe` integration is attached, then use a bounded read-only `/exec` canary before consequential account operations. For service integrations, distinguish catalog availability, configured integration, attachment to this VM, and real target readback.
+
+Likewise, guest shell `PATH`, credential stores and repository runtime pins are part of routing. A helper hidden by a login shell, a raw CLI bypassing its governed wrapper, or a host-default Python mismatch is not evidence that the underlying provider capability is broken.
+
 ## Actual ChatGPT MCP surface
 
 Executable: `get_cli_help`, `list_vms`, `create_vm`, `run_vm_command`.
