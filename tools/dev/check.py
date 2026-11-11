@@ -23,9 +23,16 @@ rules = (ROOT / "RULES.md").read_text()
 skill = (ROOT / "skills/exe-dev-core-router/SKILL.md").read_text()
 assert "Project Contract" in rules and "exe.dev" in rules
 assert skill.startswith("---\nname: exe-dev-core-router\n")
-assert "NOT_EXPOSED" in skill
 assert "get_cli_help" in skill and "run_vm_command" in skill
-assert "MCP" in skill and "readback" in skill
+assert "exe.int.exe.xyz/exec" in skill
+assert "bash -lc" in skill and "~/.local/bin" in skill
+assert "governed wrapper" in skill.lower()
+assert "runtime" in skill.lower() and "pinned" in skill.lower()
+assert "MCP/control-plane" in skill
+assert "provider proxy HTTP" in skill
+assert "authoritative postcondition" in skill
+assert "Drive" in skill and "base64" in skill
+assert "DEGRADED" in skill and "BLOCKED" in skill and "UNKNOWN" in skill
 assert "GH_TOKEN" not in skill and "oauth_token:" not in skill
 map_wf = (ROOT / ".github/workflows/repository-map.yml").read_text()
 assert "dekko==1.9.0" in map_wf
