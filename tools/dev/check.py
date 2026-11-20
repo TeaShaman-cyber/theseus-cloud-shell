@@ -32,6 +32,9 @@ assert "MCP/control-plane" in skill
 assert "provider proxy HTTP" in skill
 assert "authoritative postcondition" in skill
 assert "Drive" in skill and "base64" in skill
+assert "GitHub route precedence" in skill
+assert "native `git`/`gh`" in skill
+assert "fallback-only" in skill
 assert "DEGRADED" in skill and "BLOCKED" in skill and "UNKNOWN" in skill
 assert "GH_TOKEN" not in skill and "oauth_token:" not in skill
 map_wf = (ROOT / ".github/workflows/repository-map.yml").read_text()
