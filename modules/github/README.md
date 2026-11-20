@@ -3,6 +3,7 @@
 Purpose: one portable GitHub conformance recipe, not another credential provider.
 
 - Authenticate via supported GitHub CLI OAuth/credential store appropriate to the host. Granted scopes != permission to take unrelated actions.
+- **Project route precedence:** when exe.dev is the selected governed runtime for a project-owned repository, native `git`/`gh` is the primary GitHub operational surface. A ChatGPT GitHub connector is fallback-only after observed native-route insufficiency/capability mismatch, or on explicit user request.
 - After `gh auth status`, verify the required **specific** capability: `gh repo view` (private repo), `git ls-remote` (native Git helper), `gh api graphql` for Projects V2, and Actions API when needed.
 - A successful GitHub App integration or REST request is not proof of native `gh` or unrestricted account-level operations.
 - `gh auth setup-git` binds HTTPS credential handling; check ordinary git independently. Never emit `gh auth token` to tool-visible output, Git or logs.

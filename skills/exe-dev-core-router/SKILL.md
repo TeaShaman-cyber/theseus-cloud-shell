@@ -46,6 +46,10 @@ After a blocked, timeout or ambiguous stateful result, inspect the guest/target 
 
 Native `gh` OAuth, provider-held integrations, GNOME Secret Service, service-specific OAuth, database roles and returned ephemeral credentials are separate surfaces.
 
+### GitHub route precedence
+
+For project-owned repository operations while exe.dev is the selected governed runtime, use native `git`/`gh` on the verified VM first. The ChatGPT GitHub connector is fallback-only after observed native-route insufficiency or capability mismatch, or when the user explicitly requests that connector. Do not choose the connector merely because it is directly exposed in chat. Connector success does not prove native `gh` authority, and native `gh` success does not grant connector authority.
+
 When a provider-native integration already supplies the required credential boundary, prefer that route over duplicating secrets into the guest. Never infer one service's authorization from another.
 
 When a current provider adapter defines a **governed wrapper** (for example a keyring-backed or tmpfs-backed CLI launcher), use the adapter as the mechanics authority rather than bypassing it with the raw CLI. Do not encode mutable account IDs, secrets, Drive IDs, integration counts or wrapper internals in this skill.
