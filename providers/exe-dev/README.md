@@ -8,6 +8,7 @@ Observed current state on `theseus-exe-shell-probe`:
 
 - **GitHub:** native `gh` OAuth is stored in GNOME Secret Service, not inline in `~/.config/gh/hosts.yml`. A real reboot verified automatic headless keyring unlock, `gh api`, private HTTPS Git and ordinary `git ls-remote`.
 - **Neon:** exe.dev catalog integration `neon` is attached to the VM and injects the Neon management credential at `https://neon.int.exe.xyz`; no Neon API key is stored in the guest. On 2026-11-07 the management API returned HTTP 200, the connection-URI endpoint returned a PostgreSQL URI without printing it, installed `/bin/psql` connected successfully, and `psql -f` executed a read-only SQL file. Database authority still comes from the selected Postgres role; this capability does **not** authorize exposing Session Search corpus rows. See [Neon SQL via provider proxy](#neon-sql-via-provider-proxy-2026-11-07) and [cloud-shell issue #10](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/10).
+- **Cloudflare (2026-11-20):** exe.dev's `cloudflare` integration is configured and attached to the currently verified VM. Guest Reflection listed its attachment and the credential-injecting proxy returned HTTP 200 from a read-only `GET https://cloudflare.int.exe.xyz/client/v4/accounts`. The independent native ChatGPT Cloudflare connector also successfully listed accounts. These are separate credential and authority surfaces; neither proves the other's mutation permissions. See [Cloudflare via exe.dev proxy](#cloudflare-via-exedev-proxy-2026-11-20).
 - **Turso Platform API:** exe.dev integration `turso` is attached and read-only management-plane GETs succeeded on 2026-11-07. `GET /v1/organizations` and `GET /v1/organizations/{slug}/databases` both returned HTTP 200; the account exposed one organization and zero databases. This verifies management inventory, **not** SQL access, FTS5/libSQL compatibility, token minting, or native Turso MCP OAuth support. See [the bounded Turso probe](#turso-management-api-via-exedev-2026-11-07) and [cloud-shell issue #6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6).
 - **Azure control plane:** official Azure CLI 2.92.0 is installed from the Microsoft Ubuntu repository. Dedicated service principal `theseus-exe-operator` (`appId 9d03ca4c-53e1-4b57-9acf-728d4985457d`) has Azure RBAC `Owner` at subscription scope `/subscriptions/d760fa4b-978b-4b6d-a62e-93b55bc36746`. This is the explicitly authorized full Azure operator identity for the cloud shell; the narrower existing Translator workload identity remains unchanged.
 - **Azure certificate/keyring:** the service-principal private key was generated on this exe.dev VM and never transferred to the laptop or chat. The combined private-key + public-certificate PEM is stored in GNOME Secret Service under `app=theseus, credential=azure-exe-operator`; only the public certificate was uploaded through the already authenticated Windows Azure CLI. Certificate SHA-256 fingerprint is `A8:61:CD:48:39:6A:AF:89:63:D1:E6:15:9A:81:87:F7:DA:F1:2D:D0:AC:96:E4:A6:56:B3:28:5E:DD:FC:AE:86`, expiring 2028-11-06 UTC.
@@ -28,6 +29,28 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Known boundary:** the headless keyring unlock uses host-encrypted `systemd-creds` material. Root on this VM can decrypt it; no TPM-backed guarantee is claimed. Reboot persistence is VERIFIED on this host, while pause/cold-resume, VM migration and recovery on a replacement host remain UNKNOWN.
 
 The detailed acceptance trail, including the initial Google helper bug and the later Grafana/gcx reboot acceptance, is recorded in [Theseus Research #112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). Session Search observability design, telemetry privacy, dashboard ownership and TraceQL semantics remain tracked in [Session Search #109](https://github.com/TeaShaman-cyber/theseus-session-search-lab/issues/109).
+
+## Cloudflare via exe.dev proxy (2026-11-20)
+
+**Verified guest route:** `ChatGPT -> exe.dev MCP run_vm_command -> selected running VM -> https://cloudflare.int.exe.xyz/client/v4/... -> Cloudflare API`. Reflection showed `cloudflare` attached to the VM; the provider-native integration inventory confirmed it configured. A guest read-only `GET /client/v4/accounts` returned HTTP 200. No credentials, account identifiers, or full API response bodies were printed.
+
+**Independent ChatGPT route:** the native Cloudflare connector successfully ran `GET /accounts` with `success=true` and one account in the result. This is a separate session, credential, and permission boundary. It does not establish that the native connector's grant is usable from exe.dev, or vice versa.
+
+**Minimal read-only reprobe** (after fresh `list_vms`):
+
+```bash
+set -euo pipefail
+curl -fsS --max-time 12 https://reflection.int.exe.xyz/integrations |
+  jq -e '[.integrations[]?.name] | index("cloudflare") != null' >/dev/null
+status="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' \
+  https://cloudflare.int.exe.xyz/client/v4/accounts)"
+test "$status" = 200
+printf 'cloudflare_attachment=present cloudflare_accounts_http=%s\n' "$status"
+```
+
+**Authority and limits:** HTTP 200 proves only access to this read-only endpoint at observation time, not Workers, DNS, R2, account-wide administration or write permissions. Before mutation, establish the exact resource, permitted operation and API schema; verify the resulting Cloudflare state independently. Keep provider-held credentials outside guest environment, Git and logs; do not duplicate credentials between native Cloudflare and exe.dev. Reprobe integration attachment after VM replacement, restart or provider changes.
+
+**Observed disposition (2026-11-20):** `VM_RUNNING=VERIFIED`; `CLOUDFLARE_CONFIGURED=VERIFIED`; `CLOUDFLARE_ATTACHED=VERIFIED`; `GUEST_PROXY_ACCOUNTS_HTTP_200=VERIFIED`; `NATIVE_CHATGPT_ACCOUNT_LIST=VERIFIED_INDEPENDENT`; `MUTATION_SCOPES=UNKNOWN_NOT_TESTED`; `PERSISTENCE_AFTER_VM_REPLACEMENT=UNKNOWN_NOT_TESTED`.
 
 ## Neon SQL via provider proxy (2026-11-07)
 
