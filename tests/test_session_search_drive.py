@@ -374,6 +374,7 @@ class SessionSearchDriveAdapterTest(unittest.TestCase):
             def build_receipt(**kwargs):
                 captured.update(kwargs)
                 return {
+                    "source_snapshot": kwargs.get("source_snapshot"),
                     "artifacts": {
                         "projection_transport": {
                             "drive_file_id": "projection",
@@ -457,8 +458,13 @@ class SessionSearchDriveAdapterTest(unittest.TestCase):
                     probe_lock_out=root / "probe.lock",
                 )
 
-        self.assertEqual(result["status"], "PUBLISHED")
-        self.assertEqual(captured.get("source_snapshot"), source_snapshot)
+            self.assertEqual(result["status"], "PUBLISHED")
+            self.assertEqual(captured.get("source_snapshot"), source_snapshot)
+            private_receipt = json.loads(
+                (root / "publish" / "accepted-receipt.json").read_text()
+            )
+            self.assertEqual(private_receipt["source_snapshot"], source_snapshot)
+            self.assertNotIn("source_snapshot", result)
 
     def test_pointer_update_failure_does_not_delete_previous_pointer(self):
         class FailingDrive(FakeDrive):
