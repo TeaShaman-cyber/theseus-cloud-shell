@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -9,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -16,6 +18,11 @@ import uuid
 PROPERTY_KEY = "theseus_recovery_kind"
 POINTER_KIND = "session-search-current-v1"
 RECEIPT_KIND = "session-search-receipt-v1"
+RECOVERY_PROJECTION_KIND = "session-search-projection-v1"
+RECOVERY_EVIDENCE_KIND = "session-search-evidence-v1"
+RECOVERY_STAGE_KINDS = {RECOVERY_PROJECTION_KIND, RECOVERY_EVIDENCE_KIND}
+DEFAULT_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024
+MIN_UPLOAD_CHUNK_SIZE = 256 * 1024
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
 
@@ -209,6 +216,172 @@ class GoogleDriveClient:
         )
         self._request(request)
 
+    def create_file_resumable(
+        self,
+        path: pathlib.Path,
+        *,
+        kind: str,
+        chunk_size: int = DEFAULT_UPLOAD_CHUNK_SIZE,
+    ) -> str:
+        source = pathlib.Path(path).expanduser().resolve()
+        if not source.is_file():
+            raise ValueError("RECOVERY_STAGE_SOURCE_MISSING")
+        if kind not in RECOVERY_STAGE_KINDS:
+            raise ValueError("RECOVERY_STAGE_KIND_INVALID")
+        if (
+            not isinstance(chunk_size, int)
+            or isinstance(chunk_size, bool)
+            or chunk_size < MIN_UPLOAD_CHUNK_SIZE
+            or chunk_size % MIN_UPLOAD_CHUNK_SIZE
+        ):
+            raise ValueError("RECOVERY_STAGE_CHUNK_SIZE_INVALID")
+        total = source.stat().st_size
+        if total < 1:
+            raise ValueError("RECOVERY_STAGE_SOURCE_EMPTY")
+
+        token = self._token()
+        metadata = json.dumps(
+            {
+                "name": f"theseus-recovery-artifact-{uuid.uuid4().hex}.bin",
+                "mimeType": "application/octet-stream",
+                "properties": {PROPERTY_KEY: kind},
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            f"{DRIVE_UPLOAD_API}/files?uploadType=resumable&fields=id",
+            data=metadata,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-Upload-Content-Type": "application/octet-stream",
+                "X-Upload-Content-Length": str(total),
+            },
+        )
+        with urllib.request.urlopen(request, timeout=60) as response:
+            session_url = str(response.headers.get("Location") or "")
+            response.read()
+        if not session_url:
+            raise RuntimeError("DRIVE_RESUMABLE_LOCATION_MISSING")
+
+        offset = 0
+        with source.open("rb") as handle:
+            while offset < total:
+                chunk = handle.read(min(chunk_size, total - offset))
+                if not chunk:
+                    raise RuntimeError("DRIVE_RESUMABLE_SOURCE_TRUNCATED")
+                end = offset + len(chunk) - 1
+                upload = urllib.request.Request(
+                    session_url,
+                    data=chunk,
+                    method="PUT",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/octet-stream",
+                        "Content-Length": str(len(chunk)),
+                        "Content-Range": f"bytes {offset}-{end}/{total}",
+                    },
+                )
+                try:
+                    with urllib.request.urlopen(upload, timeout=120) as response:
+                        status = int(response.getcode())
+                        body = response.read()
+                except urllib.error.HTTPError as exc:
+                    if exc.code != 308:
+                        raise
+                    status = 308
+                    body = exc.read()
+
+                final = end + 1 == total
+                if not final:
+                    if status != 308:
+                        raise RuntimeError(
+                            "DRIVE_RESUMABLE_INTERMEDIATE_STATUS_INVALID"
+                        )
+                    offset = end + 1
+                    continue
+
+                if status not in (200, 201):
+                    raise RuntimeError("DRIVE_RESUMABLE_FINAL_STATUS_INVALID")
+                try:
+                    payload = json.loads(body.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise RuntimeError("DRIVE_RESUMABLE_FINAL_JSON_INVALID") from exc
+                file_id = str(payload.get("id") or "")
+                if not file_id:
+                    raise RuntimeError("DRIVE_CREATE_ID_MISSING")
+                if source.stat().st_size != total:
+                    raise RuntimeError("RECOVERY_STAGE_SOURCE_CHANGED")
+                return file_id
+
+        raise RuntimeError("DRIVE_RESUMABLE_UPLOAD_INCOMPLETE")
+
+
+
+def _sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with pathlib.Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def stage_recovery_file(
+    drive,
+    *,
+    source: pathlib.Path,
+    kind: str,
+    receipt_out: pathlib.Path,
+    workdir: pathlib.Path,
+    chunk_size: int = DEFAULT_UPLOAD_CHUNK_SIZE,
+) -> dict:
+    source_path = pathlib.Path(source).expanduser().resolve()
+    if not source_path.is_file():
+        raise ValueError("RECOVERY_STAGE_SOURCE_MISSING")
+    if kind not in RECOVERY_STAGE_KINDS:
+        raise ValueError("RECOVERY_STAGE_KIND_INVALID")
+
+    size_bytes = source_path.stat().st_size
+    sha256 = _sha256_file(source_path)
+    file_id = drive.create_file_resumable(
+        source_path,
+        kind=kind,
+        chunk_size=chunk_size,
+    )
+
+    root = pathlib.Path(workdir).expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    os.chmod(root, 0o700)
+    readback = root / f"stage-readback-{uuid.uuid4().hex}.bin"
+    try:
+        drive.download_to_path(file_id, readback)
+        if readback.stat().st_size != size_bytes:
+            raise ValueError("RECOVERY_STAGE_READBACK_SIZE_MISMATCH")
+        if _sha256_file(readback) != sha256:
+            raise ValueError("RECOVERY_STAGE_READBACK_DIGEST_MISMATCH")
+    finally:
+        try:
+            readback.unlink()
+        except FileNotFoundError:
+            pass
+
+    private = {
+        "schema": "theseus.session-search-recovery-stage-receipt.v1",
+        "kind": kind,
+        "drive_file_id": file_id,
+        "sha256": sha256,
+        "size_bytes": size_bytes,
+    }
+    _write_private_bytes(
+        receipt_out,
+        json.dumps(private, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+    )
+    return {
+        "status": "VERIFIED",
+        "kind": kind,
+        "size_bytes": size_bytes,
+    }
 
 
 
@@ -449,9 +622,28 @@ def main() -> int:
     recover.add_argument("--workdir", type=pathlib.Path, required=True)
     recover.add_argument("--corpus-lock-out", type=pathlib.Path, required=True)
 
+    stage = sub.add_parser("stage-file")
+    stage.add_argument("--source", type=pathlib.Path, required=True)
+    stage.add_argument("--kind", choices=sorted(RECOVERY_STAGE_KINDS), required=True)
+    stage.add_argument("--receipt-out", type=pathlib.Path, required=True)
+    stage.add_argument("--workdir", type=pathlib.Path, required=True)
+    stage.add_argument("--chunk-size", type=int, default=DEFAULT_UPLOAD_CHUNK_SIZE)
+
     args = parser.parse_args()
-    handoff = _load_handoff_module(args.session_search_repo)
     drive = GoogleDriveClient()
+    if args.command == "stage-file":
+        result = stage_recovery_file(
+            drive,
+            source=args.source,
+            kind=args.kind,
+            receipt_out=args.receipt_out,
+            workdir=args.workdir,
+            chunk_size=args.chunk_size,
+        )
+        print(json.dumps(result, sort_keys=True))
+        return 0
+
+    handoff = _load_handoff_module(args.session_search_repo)
     if args.command == "publish":
         result = publish_from_spec(
             drive,

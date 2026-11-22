@@ -192,4 +192,14 @@ The pointer is discovered by Drive custom property (`theseus_recovery_kind=sessi
 
 Publication is the final acceptance step for a newly verified corpus. The adapter first re-downloads the already staged projection/evidence objects and verifies their exact identities, uploads and reads back an immutable receipt, then updates the single current pointer. Existing pointer bytes are retained before update; a mismatched post-update readback triggers restoration and verification of the previous pointer. Publication finishes only after a fresh-runtime-style recovery probe recreates a valid local corpus lock.
 
+Large recovery projection/evidence objects are staged through the adapter's bounded resumable uploader rather than loaded into model/chat memory or one giant request body:
+
+    session_search_drive.py --session-search-repo <repo> stage-file \
+      --source <private-file> \
+      --kind <session-search-projection-v1|session-search-evidence-v1> \
+      --receipt-out <private-0600-json> \
+      --workdir <private-readback-dir>
+
+stage-file uploads bounded chunks, independently downloads the resulting object, verifies exact size/SHA, deletes the temporary readback copy, and prints only bounded public-safe status metadata. The mode-0600 receipt contains the private Drive ID/size/SHA needed to assemble the subsequent publish spec. Staging never updates the current recovery pointer; publish remains the only pointer-promotion path.
+
 Provider-specific Drive IDs, hashes, private filenames, OAuth tokens and corpus contents are never printed by the adapter or committed here. Accepted evidence remains authority; Drive remains private recovery transport.
