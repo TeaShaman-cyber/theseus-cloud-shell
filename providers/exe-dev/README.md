@@ -56,11 +56,13 @@ printf 'cloudflare_attachment=present cloudflare_accounts_http=%s\n' "$status"
 
 ## LLM/provider integrations (2026-11-21)
 
-The primary governed VM `theseus-exe-shell-probe` currently reports these provider-facing integrations through Reflection: `openrouter`, `bothub-api`, `groq`, and `nvidi-nim`. They are swappable inference routes; none is the architectural authority for Mastra or the dreaming worker.
+The primary governed VM `theseus-exe-shell-probe` currently reports these provider-facing integrations through Reflection: `openrouter`, `bothub-api`, `groq`, `nvidi-nim`, and `nous`. They are swappable inference routes; none is the architectural authority for Mastra or the dreaming worker.
 
 **NVIDIA NIM verified route:** `ChatGPT -> exe.dev MCP -> theseus-exe-shell-probe -> https://nvidi-nim.int.exe.xyz/v1/... -> https://integrate.api.nvidia.com/v1/...`. The exe.dev HTTP proxy target is the host root `https://integrate.api.nvidia.com/`; request paths such as `/v1/models` are appended by the proxy. The integration stores/injects the Bearer credential provider-side. The current configured integration name is intentionally documented exactly as observed: `nvidi-nim`.
 
 A read-only guest probe of `/v1/models` returned HTTP 200 and 33 model IDs. This proves the attached credential can reach NVIDIA model discovery at the observation time; it does not prove arbitrary inference models, quota, spend, retention terms, or future availability. No inference request was made for this acceptance check.
+
+**Nous Research verified route (2026-11-22):** `ChatGPT -> exe.dev MCP -> theseus-exe-shell-probe -> https://nous.int.exe.xyz/v1/... -> https://inference-api.nousresearch.com/v1/...`. The `nous` HTTP proxy integration stores/injects the user's Nous bearer credential provider-side and is attached directly to `vm:theseus-exe-shell-probe`. A guest `GET /v1/models` returned HTTP 200 with 415 model IDs at acceptance. The local staging helper read `NOUS_API_KEY` only on the user's workstation and sent it to `ssh exe.dev integrations add ... --bearer=-` over stdin; the helper was removed after verification. No Nous credential is stored in the guest or repository. See cloud-shell issue #28.
 
 **Other routes:** Reflection also shows `openrouter`, `bothub-api`, and `groq` attached to the VM. Existing OpenRouter integration metadata states that its credential is injected at the proxy and no API key is required in the guest. For BotHub and Groq, this dated checkpoint records attachment only; endpoint/model capability should be probed when a concrete Mastra/provider decision needs it.
 
