@@ -1,9 +1,13 @@
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
+import os
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "providers" / "exe-dev" / "session_search_drive.py"
@@ -42,6 +46,14 @@ class FakeDrive:
         if self.corrupt_after_update:
             self.corrupt_after_update = False
             self.corrupt_next_readback = True
+
+    def create_file_resumable(self, path, *, kind, chunk_size=None):
+        file_id = f"f{self.next_id}"
+        self.next_id += 1
+        with pathlib.Path(path).open("rb") as handle:
+            content = handle.read()
+        self.files[file_id] = {"kind": kind, "content": content}
+        return file_id
 
     def download_bytes(self, file_id):
         value = self.files[file_id]["content"]
@@ -178,6 +190,163 @@ class SessionSearchDriveAdapterTest(unittest.TestCase):
             )
             self.assertEqual(result["status"], "VERIFIED")
             self.assertTrue((root / "current-corpus.json").is_file())
+
+
+    def test_resumable_upload_streams_bounded_chunks_without_read_bytes(self):
+        class FakeResponse:
+            def __init__(self, body=b"", *, status=200, headers=None):
+                self._body = body
+                self.status = status
+                self.headers = headers or {}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return self._body
+
+            def getcode(self):
+                return self.status
+
+        with tempfile.TemporaryDirectory() as td:
+            source = pathlib.Path(td) / "large.bin"
+            chunk = 256 * 1024
+            source.write_bytes(b"x" * (chunk * 2 + 17))
+            requests = []
+
+            def fake_urlopen(request, timeout=60):
+                requests.append(request)
+                if len(requests) == 1:
+                    self.assertEqual(request.method, "POST")
+                    self.assertIn("uploadType=resumable", request.full_url)
+                    return FakeResponse(
+                        headers={"Location": "https://upload.example/session"}
+                    )
+                if len(requests) in (2, 3):
+                    return FakeResponse(status=308)
+                return FakeResponse(
+                    json.dumps({"id": "drive-large-1"}).encode(),
+                    status=200,
+                )
+
+            client = self.m.GoogleDriveClient(token_command=["unused"])
+            with (
+                mock.patch.object(client, "_token", return_value="token"),
+                mock.patch.object(self.m.urllib.request, "urlopen", side_effect=fake_urlopen),
+                mock.patch.object(
+                    pathlib.Path,
+                    "read_bytes",
+                    side_effect=AssertionError("large-file path must stream"),
+                ),
+            ):
+                file_id = client.create_file_resumable(
+                    source,
+                    kind=self.m.RECOVERY_PROJECTION_KIND,
+                    chunk_size=chunk,
+                )
+
+            self.assertEqual(file_id, "drive-large-1")
+            put_requests = requests[1:]
+            self.assertEqual([len(r.data) for r in put_requests], [chunk, chunk, 17])
+            self.assertEqual(
+                [r.headers["Content-range"] for r in put_requests],
+                [
+                    f"bytes 0-{chunk - 1}/{chunk * 2 + 17}",
+                    f"bytes {chunk}-{chunk * 2 - 1}/{chunk * 2 + 17}",
+                    f"bytes {chunk * 2}-{chunk * 2 + 16}/{chunk * 2 + 17}",
+                ],
+            )
+
+    def test_stage_recovery_file_verifies_readback_and_writes_private_receipt(self):
+        drive = FakeDrive()
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = root / "source.bin"
+            source.write_bytes(b"bounded-large-file")
+            receipt = root / "private" / "stage.json"
+            workdir = root / "readback"
+
+            result = self.m.stage_recovery_file(
+                drive,
+                source=source,
+                kind=self.m.RECOVERY_EVIDENCE_KIND,
+                receipt_out=receipt,
+                workdir=workdir,
+                chunk_size=256 * 1024,
+            )
+
+            self.assertEqual(result["status"], "VERIFIED")
+            private = json.loads(receipt.read_text())
+            self.assertEqual(private["drive_file_id"], "f1")
+            self.assertEqual(private["size_bytes"], source.stat().st_size)
+            self.assertEqual(
+                private["sha256"],
+                hashlib.sha256(source.read_bytes()).hexdigest(),
+            )
+            self.assertEqual(receipt.stat().st_mode & 0o777, 0o600)
+
+    def test_stage_recovery_file_fails_closed_on_readback_mismatch(self):
+        drive = FakeDrive()
+        drive.corrupt_next_readback = True
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = root / "source.bin"
+            source.write_bytes(b"source")
+            with self.assertRaisesRegex(
+                ValueError, "RECOVERY_STAGE_READBACK_(SIZE|DIGEST)_MISMATCH"
+            ):
+                self.m.stage_recovery_file(
+                    drive,
+                    source=source,
+                    kind=self.m.RECOVERY_PROJECTION_KIND,
+                    receipt_out=root / "receipt.json",
+                    workdir=root / "readback",
+                    chunk_size=256 * 1024,
+                )
+            self.assertFalse((root / "receipt.json").exists())
+
+    def test_stage_file_cli_stdout_never_exposes_private_receipt_fields(self):
+        drive = FakeDrive()
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            source = root / "private-projection.bin"
+            source.write_bytes(b"projection")
+            receipt = root / "private-receipt.json"
+            workdir = root / "readback"
+
+            with (
+                mock.patch.object(self.m, "GoogleDriveClient", return_value=drive),
+                mock.patch(
+                    "sys.argv",
+                    [
+                        "session_search_drive.py",
+                        "--session-search-repo",
+                        str(ROOT),
+                        "stage-file",
+                        "--source",
+                        str(source),
+                        "--kind",
+                        self.m.RECOVERY_PROJECTION_KIND,
+                        "--receipt-out",
+                        str(receipt),
+                        "--workdir",
+                        str(workdir),
+                    ],
+                ),
+                contextlib.redirect_stdout(io.StringIO()) as stdout,
+            ):
+                rc = self.m.main()
+
+            self.assertEqual(rc, 0)
+            public = stdout.getvalue()
+            private = receipt.read_text()
+            self.assertIn('"status": "VERIFIED"', public)
+            self.assertNotIn("f1", public)
+            self.assertNotIn(str(source), public)
+            self.assertNotIn(json.loads(private)["sha256"], public)
 
     def test_pointer_update_failure_does_not_delete_previous_pointer(self):
         class FailingDrive(FakeDrive):
