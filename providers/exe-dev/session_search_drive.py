@@ -549,6 +549,7 @@ def publish_from_spec(
         accepted_set_sha256=spec["accepted_set_sha256"],
         verification=spec["verification"],
         source_watermark=spec.get("source_watermark"),
+        source_snapshot=spec.get("source_snapshot"),
         projection_encoding=spec.get("projection_encoding", "zstd"),
     )
     receipt_path = handoff.write_private_json(root / "accepted-receipt.json", receipt)

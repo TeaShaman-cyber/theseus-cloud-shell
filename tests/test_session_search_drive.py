@@ -348,6 +348,118 @@ class SessionSearchDriveAdapterTest(unittest.TestCase):
             self.assertNotIn(str(source), public)
             self.assertNotIn(json.loads(private)["sha256"], public)
 
+    def test_publish_from_spec_preserves_optional_source_snapshot(self):
+        drive = FakeDrive()
+        projection = b"projection-transport"
+        evidence = b"accepted-evidence"
+        drive.files["projection"] = {
+            "kind": self.m.RECOVERY_PROJECTION_KIND,
+            "content": projection,
+        }
+        drive.files["evidence"] = {
+            "kind": self.m.RECOVERY_EVIDENCE_KIND,
+            "content": evidence,
+        }
+        captured = {}
+        source_snapshot = {
+            "provider": "gemini",
+            "source_scope": "GEMINI_APPS_ACTIVITY",
+            "observed_through": 1795275928.0,
+            "basis": "provider_takeout_request_receipt",
+            "accepted_set_sha256": "b" * 64,
+        }
+
+        class FakeHandoff:
+            @staticmethod
+            def build_receipt(**kwargs):
+                captured.update(kwargs)
+                return {
+                    "artifacts": {
+                        "projection_transport": {
+                            "drive_file_id": "projection",
+                            "sha256": hashlib.sha256(projection).hexdigest(),
+                            "size_bytes": len(projection),
+                            "encoding": "identity",
+                        },
+                        "accepted_evidence": {
+                            "drive_file_id": "evidence",
+                            "sha256": hashlib.sha256(evidence).hexdigest(),
+                            "size_bytes": len(evidence),
+                        },
+                    }
+                }
+
+            @staticmethod
+            def write_private_json(path, payload):
+                target = pathlib.Path(path)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(json.dumps(payload))
+                target.chmod(0o600)
+                return target
+
+            @staticmethod
+            def verify_artifact_file(path, descriptor):
+                payload = pathlib.Path(path).read_bytes()
+                if len(payload) != descriptor["size_bytes"]:
+                    raise ValueError("size")
+                if hashlib.sha256(payload).hexdigest() != descriptor["sha256"]:
+                    raise ValueError("digest")
+                return pathlib.Path(path)
+
+            @staticmethod
+            def build_locator(receipt_path, *, receipt_drive_file_id):
+                return {
+                    "schema": "locator",
+                    "receipt": {"drive_file_id": receipt_drive_file_id},
+                }
+
+        with tempfile.TemporaryDirectory() as td:
+            root = pathlib.Path(td)
+            projection_path = root / "projection.bin"
+            db_path = root / "corpus.sqlite3"
+            evidence_path = root / "evidence.bin"
+            projection_path.write_bytes(projection)
+            db_path.write_bytes(b"db")
+            evidence_path.write_bytes(evidence)
+            spec = {
+                "projection_transport_path": str(projection_path),
+                "projection_drive_file_id": "projection",
+                "projection_db_path": str(db_path),
+                "evidence_path": str(evidence_path),
+                "evidence_drive_file_id": "evidence",
+                "source_commit": "a" * 40,
+                "accepted_set_sha256": "b" * 64,
+                "verification": {"status": "VERIFIED"},
+                "source_snapshot": source_snapshot,
+                "projection_encoding": "identity",
+            }
+            with (
+                mock.patch.object(
+                    self.m,
+                    "publish_immutable_receipt",
+                    return_value="receipt-id",
+                ),
+                mock.patch.object(self.m, "publish_current_pointer"),
+                mock.patch.object(
+                    self.m,
+                    "recover_current",
+                    return_value={
+                        "status": "VERIFIED",
+                        "corpus_lock_created": True,
+                    },
+                ),
+            ):
+                result = self.m.publish_from_spec(
+                    drive,
+                    FakeHandoff,
+                    spec=spec,
+                    workdir=root / "publish",
+                    probe_lock_out=root / "probe.lock",
+                )
+
+        self.assertEqual(result["status"], "PUBLISHED")
+        self.assertEqual(captured.get("source_snapshot"), source_snapshot)
+
     def test_pointer_update_failure_does_not_delete_previous_pointer(self):
         class FailingDrive(FakeDrive):
             def update_bytes(self, file_id, content):
