@@ -209,3 +209,47 @@ Large recovery projection/evidence objects are staged through the adapter's boun
 stage-file uploads bounded chunks, independently downloads the resulting object, verifies exact size/SHA, deletes the temporary readback copy, and prints only bounded public-safe status metadata. The mode-0600 receipt contains the private Drive ID/size/SHA needed to assemble the subsequent publish spec. Staging never updates the current recovery pointer; publish remains the only pointer-promotion path.
 
 Provider-specific Drive IDs, hashes, private filenames, OAuth tokens and corpus contents are never printed by the adapter or committed here. Accepted evidence remains authority; Drive remains private recovery transport.
+
+## Bounded GitHub Actions firewall lease for Azure SQL
+
+Cloud Shell issue #37 / Repository Search issue #131. The SQL OIDC path is
+separate from the network admission rule. The runner publishes its current
+public IPv4 in a single file named `ip.txt`, in an Actions artifact named
+`rs-runner-ip-<run_attempt>`. Do not publish a local workstation address or
+credential. The workflow must have an independently reviewed, exact pushed
+head and a bounded connection-retry window.
+
+Run the checked-out operator helper on the authorized exe.dev VM (not on the
+runner), passing the exact repository, run ID, attempt, 40-character head SHA,
+branch, workflow path, SQL group/server and a new receipt path in an
+owner-only directory:
+
+```sh
+python3 providers/exe-dev/runner_firewall.py \
+  --repo OWNER/REPO --run-id RUN_ID --attempt 1 --sha FULL_HEAD_SHA \
+  --branch BRANCH --workflow .github/workflows/WORKFLOW.yml \
+  --group SQL_GROUP --server SQL_SERVER \
+  --receipt /absolute/owner-only/new-lease.json --timeout 600
+```
+
+The selected run's observed address receives a single-IP rule named `rs-gh-<run>-<attempt>`.
+The helper verifies the rule by readback and removes it on completion, failure,
+timeout or catchable interruption. It never enables blanket Azure access or
+grants a database role. The existing governed az-owner wrapper remains on
+exe.dev; no Owner credential is supplied to GitHub. The operator must choose
+the already authorized exact target and trust the reviewed workflow's IP
+artifact; this is network admission, not proof of caller identity. SQL OIDC
+and least-privilege grants remain mandatory.
+
+Use one controller per run/attempt; do not concurrently manipulate its rule.
+An existing receipt or rule is not adopted. A hard kill, unresolved provider
+response or failed cleanup can leave `PENDING_CLEANUP`; the receipt records
+the exact target, rule and address. Reconcile via fresh Azure rule inventory
+and exact matching ownership before removing the rule; do not blindly retry
+or delete a changed rule. A hard kill may also interrupt the governed CLI's
+tmpfs cleanup; inspect its owned temporary directories rather than claiming
+credential cleanup. Never use a receipt alone as authority. A deadline
+bounds polling, not necessarily the duration of an in-flight provider request
+and its cleanup. A run completed before rule creation has no lease receipt
+and does not prove network admission. This helper does not provision databases,
+identities or GitHub workflows, and does not cancel a timed-out run.
