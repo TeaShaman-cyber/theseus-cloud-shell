@@ -80,6 +80,15 @@ class MotherDuckNativeTest(unittest.TestCase):
             self.execute(lambda *args: "42\n")
         self.assertTrue(self.api.tokens)
 
+    def test_known_token_revoked_even_when_metadata_readback_fails(self):
+        def request(path, method="GET", body=None):
+            if method == "GET" and path.endswith("/tokens"):
+                return 503, {}
+            return self.api(path, method, body)
+        with self.assertRaisesRegex(self.m.RouteError, "CLEANUP"):
+            self.m.run_sql(request, lambda *args: "42", "my_db", pathlib.Path("/tmp/example.sql"))
+        self.assertFalse(self.api.tokens)
+
     def test_cli_token_only_in_child_environment_and_temp_home_removed(self):
         seen = {}
         def fake_run(args, **kw):

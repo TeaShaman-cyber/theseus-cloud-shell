@@ -72,15 +72,13 @@ def run_sql(request, runner, database, sql_file):
         return runner(token, database, sql_file)
     finally:
         # Reconcile even when the mint response was lost; never repeat the POST.
-        rows = token_rows(request, path)
-        matched = [row for row in rows if row.get("name") == name]
-        if len(matched) > 1 or (matched and not token_id(matched[0])):
-            raise RouteError("TOKEN_CLEANUP_AMBIGUOUS")
-        if matched:
-            found = token_id(matched[0])
-            if issued_id and found != issued_id:
-                raise RouteError("TOKEN_CLEANUP_ID_MISMATCH")
-            issued_id = found
+        if not issued_id:
+            rows = token_rows(request, path)
+            matched = [row for row in rows if row.get("name") == name]
+            if len(matched) > 1 or (matched and not token_id(matched[0])):
+                raise RouteError("TOKEN_CLEANUP_AMBIGUOUS")
+            if matched:
+                issued_id = token_id(matched[0])
         if issued_id:
             status, _ = request(path + "/" + quote(issued_id, safe=""), "DELETE")
             rows = token_rows(request, path)
