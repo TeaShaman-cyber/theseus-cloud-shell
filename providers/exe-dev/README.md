@@ -120,6 +120,58 @@ The small management re-probe from the earlier 2026-11-07 section remains approp
 **Current disposition:** `TURSO_INTEGRATION_ATTACHED=VERIFIED`; `PLATFORM_API=VERIFIED`; `DB_TOKEN_MINT=VERIFIED`; `SQL_OVER_HTTP=VERIFIED`; `SQLITE_UPLOAD=VERIFIED`; `FTS5_UNICODE61=VERIFIED`; `REMOTE_TEMP_FTS5VOCAB=UNAVAILABLE_OBSERVED`; `NATIVE_CHATGPT_TURSO_MCP=VERIFIED_SEPARATE_SURFACE`.
 
 Evidence / coordination: [theseus-cloud-shell#6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6), [theseus-cloud-shell#30](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/30), [Repository Search #132](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/issues/132), and merged [Repository Search PR #133](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/pull/133).
+## Azure Data Explorer (Kusto) via existing az-owner (2026-11-25)
+
+For the free ADX research cluster, reuse the existing certificate-backed
+`/home/exedev/.local/bin/az-owner` wrapper. No new permanent token,
+HTTP proxy, custom MCP or login is required for ordinary data-plane operations.
+The cluster URI is runtime configuration; do not commit it or credentials.
+
+```sh
+# CLUSTER = exact verified HTTPS Kusto cluster URI, DB = intended database.
+az-owner rest --method post --url "$CLUSTER/v2/rest/query" \
+  --resource "$CLUSTER" --headers Content-Type=application/json \
+  --body "$(jq -n --arg db "$DB" --rawfile csl query.kql '{db:$db,csl:$csl}')" \
+  --only-show-errors -o json
+
+# For an authorized management command in a reviewed KQL file:
+az-owner rest --method post --url "$CLUSTER/v1/rest/mgmt" \
+  --resource "$CLUSTER" --headers Content-Type=application/json \
+  --body "$(jq -n --arg db "$DB" --rawfile csl command.kql '{db:$db,csl:$csl}')" \
+  --only-show-errors -o json
+```
+
+Use the documented absolute wrapper path if PATH is masked. Inspect full
+query response frames, including completion/errors, before accepting results;
+HTTP 200 alone is insufficient. Read back state after authorized mutations.
+The wrapper obtains Entra credentials for the requested cluster audience and
+cleans its temporary CLI state; no access token needs to be copied into chat.
+
+**Verified:** initial valid-token query returned HTTP 403; after the cluster
+owner granted the existing service principal Database User on
+`repository_search`, fresh `print canary=42` and
+`.show database repository_search principal roles` succeeded. Native
+`az-owner rest` then returned exact edges (1,2),(2,3) for
+`datatable(s:long,t:long)[1,2,2,3] | make-graph s --> t with_node_id=key |
+graph-match (a)-[e]->(b) project src=a.key, dst=b.key`, and `.show tables`
+returned an empty inventory. This verifies small transient graph support on
+the actual free cluster; not full corpus performance or every graph operator.
+
+**Authority:** Azure subscription Owner does not imply ADX Database Admin.
+Database User can read the database and create/administer its own tables
+and functions; granting roles to other principals and creating new databases
+may require additional authority. Do not infer or escalate it. Free cluster
+creation is a separate Microsoft user web flow; do not use paid ARM
+provisioning as a substitute. For new cloud resources record ownership,
+source, exact target and retirement before creation per housekeeping.
+A future MCP is an optional interface, not a way to bypass database roles.
+The free cluster is for public mathematical artifacts, not private history.
+
+Sources: [ADX free cluster](https://learn.microsoft.com/azure/data-explorer/start-for-free),
+[RBAC](https://learn.microsoft.com/kusto/access-control/role-based-access-control?view=azure-data-explorer),
+[graph operators](https://learn.microsoft.com/kusto/query/graph-operators?view=azure-data-explorer).
+Research owner: [Repository Search #131](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/issues/131).
+
 ### Routing summary: direct MCP vs provider-native control
 
 The current control model is intentionally two-layered:
