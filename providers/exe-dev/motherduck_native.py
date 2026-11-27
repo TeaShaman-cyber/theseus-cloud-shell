@@ -5,9 +5,11 @@ import json
 import os
 from pathlib import Path
 import resource
+import selectors
 import subprocess
 import sys
 import tempfile
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -86,23 +88,59 @@ def run_sql(request, runner, database, sql_file):
                 raise RouteError("TOKEN_CLEANUP_UNVERIFIED")
 
 
+def bounded_output(command, env, *, limit=8 * 1024 * 1024, timeout=240):
+    """Drain both pipes without unbounded buffering; fail before releasing output."""
+    deadline = time.monotonic() + timeout
+    output = bytearray()
+    total = 0
+    try:
+        with subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
+            try:
+                with selectors.DefaultSelector() as selector:
+                    selector.register(process.stdout, selectors.EVENT_READ, True)
+                    selector.register(process.stderr, selectors.EVENT_READ, False)
+                    while selector.get_map():
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise RouteError("DUCKDB_EXECUTION_FAILED")
+                        ready = selector.select(remaining)
+                        if not ready:
+                            raise RouteError("DUCKDB_EXECUTION_FAILED")
+                        for key, _ in ready:
+                            chunk = os.read(key.fd, 65536)
+                            if not chunk:
+                                selector.unregister(key.fileobj)
+                                continue
+                            total += len(chunk)
+                            if total > limit:
+                                raise RouteError("DUCKDB_OUTPUT_LIMIT")
+                            if key.data:
+                                output.extend(chunk)
+                if process.wait(timeout=max(0.01, deadline - time.monotonic())) != 0:
+                    raise RouteError("DUCKDB_FAILED")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+    except (OSError, subprocess.TimeoutExpired):
+        raise RouteError("DUCKDB_EXECUTION_FAILED") from None
+    try:
+        return output.decode("utf-8")
+    except UnicodeDecodeError:
+        raise RouteError("DUCKDB_OUTPUT_INVALID") from None
+
+
 def run_duckdb(token, database, sql_file):
     with tempfile.TemporaryDirectory(prefix="theseus-md-", dir="/dev/shm") as home:
         env = {k: v for k, v in os.environ.items() if "motherduck" not in k.lower() and k != "DUCK_API_KEY"}
         env.update(HOME=home, XDG_CONFIG_HOME=home + "/config",
                    XDG_CACHE_HOME=home + "/cache", XDG_DATA_HOME=home + "/data",
                    XDG_STATE_HOME=home + "/state", motherduck_token=token)
-        try:
-            p = subprocess.run(
-                ["/usr/local/bin/duckdb", "md:" + database, "-batch", "-bail",
-                 "-csv", "-header", "-no-init", "-f", str(sql_file)],
-                env=env, stdin=subprocess.DEVNULL, capture_output=True,
-                text=True, timeout=240)
-        except (OSError, subprocess.TimeoutExpired):
-            raise RouteError("DUCKDB_EXECUTION_FAILED") from None
-        if p.returncode != 0:
-            raise RouteError("DUCKDB_FAILED")
-        return p.stdout
+        return bounded_output(
+            ["/usr/local/bin/duckdb", "md:" + database, "-batch", "-bail",
+             "-csv", "-header", "-no-init", "-f", str(sql_file)], env)
+
 
 
 def main():

@@ -91,12 +91,35 @@ class MotherDuckNativeTest(unittest.TestCase):
 
     def test_cli_token_only_in_child_environment_and_temp_home_removed(self):
         seen = {}
-        def fake_run(args, **kw):
-            seen.update(kw["env"])
+        def fake_run(args, env):
+            seen.update(env)
             self.assertNotIn("synthetic-token", " ".join(args))
             self.assertEqual(seen["motherduck_token"], "synthetic-token")
             self.assertTrue(pathlib.Path(seen["HOME"]).is_dir())
-            return subprocess.CompletedProcess(args, 0, stdout="42\n", stderr="")
-        with mock.patch.object(self.m.subprocess, "run", side_effect=fake_run):
+            return "42\n"
+        with mock.patch.object(self.m, "bounded_output", side_effect=fake_run):
             self.assertEqual(self.m.run_duckdb("synthetic-token", "my_db", pathlib.Path("/tmp/example.sql")), "42\n")
         self.assertFalse(pathlib.Path(seen["HOME"]).exists())
+
+    def test_oversize_native_output_is_bounded_and_revokes_token(self):
+        import os
+        import sys
+
+        def runner(*args):
+            return self.m.bounded_output(
+                [sys.executable, "-c", "import sys;sys.stdout.write('x'*1000000)"],
+                dict(os.environ), limit=4096, timeout=5)
+        with self.assertRaisesRegex(self.m.RouteError, "OUTPUT_LIMIT"):
+            self.execute(runner)
+        self.assertFalse(self.api.tokens)
+
+    def test_bounded_native_output_success_and_stderr_limit(self):
+        import os
+        import sys
+
+        self.assertEqual(self.m.bounded_output(
+            [sys.executable, "-c", "print('42')"], dict(os.environ), limit=4096, timeout=5), "42\n")
+        with self.assertRaisesRegex(self.m.RouteError, "OUTPUT_LIMIT"):
+            self.m.bounded_output(
+                [sys.executable, "-c", "import sys;sys.stderr.write('x'*1000000)"],
+                dict(os.environ), limit=4096, timeout=5)
