@@ -11,6 +11,7 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Cloudflare (2026-11-20):** exe.dev's `cloudflare` integration is configured and attached to the currently verified VM. Guest Reflection listed its attachment and the credential-injecting proxy returned HTTP 200 from a read-only `GET https://cloudflare.int.exe.xyz/client/v4/accounts`. The independent native ChatGPT Cloudflare connector also successfully listed accounts. These are separate credential and authority surfaces; neither proves the other's mutation permissions. See [Cloudflare via exe.dev proxy](#cloudflare-via-exedev-proxy-2026-11-20).
 - **LLM/provider integrations (2026-11-21):** the primary VM currently exposes attached OpenRouter, BotHub, Groq, and NVIDIA NIM routes through exe.dev integrations. The NVIDIA integration is currently named `nvidi-nim` (configured name), targets `https://integrate.api.nvidia.com/` with provider-side Bearer injection, and a guest read-only `GET https://nvidi-nim.int.exe.xyz/v1/models` returned HTTP 200 with 33 model IDs. Presence of the other provider integrations is attachment evidence only unless a target probe is recorded separately. See [LLM/provider integrations](#llmprovider-integrations-2026-11-21) and [cloud-shell issue #22](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/22).
 - **Turso Platform API + libSQL data plane:** exe.dev integration `turso` is attached and keeps the Platform API credential provider-side. The 2026-11-22 Repository Search work verified short-lived DB-token minting, SQLite upload, SQL-over-HTTP readback, and FTS5/`unicode61` queries without persisting a Turso platform credential in the guest. Native ChatGPT Turso MCP is a separate credential/authority surface. See [the Turso route](#turso-platform-api-and-libsql-data-plane-via-exedev) and [cloud-shell issue #30](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/30).
+- **Zenodo:** native provider-held HTTP proxy `zenodo` is attached to the governed VM; authenticated draft list, creation and manuscript file upload/readback verified. See [Zenodo via exe.dev](#zenodo-via-exedev-http-proxy-2026-11-27).
 - **Azure control plane:** official Azure CLI 2.92.0 is installed from the Microsoft Ubuntu repository. Dedicated service principal `theseus-exe-operator` (`appId 9d03ca4c-53e1-4b57-9acf-728d4985457d`) has Azure RBAC `Owner` at subscription scope `/subscriptions/d760fa4b-978b-4b6d-a62e-93b55bc36746`. This is the explicitly authorized full Azure operator identity for the cloud shell; the narrower existing Translator workload identity remains unchanged.
 - **Azure certificate/keyring:** the service-principal private key was generated on this exe.dev VM and never transferred to the laptop or chat. The combined private-key + public-certificate PEM is stored in GNOME Secret Service under `app=theseus, credential=azure-exe-operator`; only the public certificate was uploaded through the already authenticated Windows Azure CLI. Certificate SHA-256 fingerprint is `A8:61:CD:48:39:6A:AF:89:63:D1:E6:15:9A:81:87:F7:DA:F1:2D:D0:AC:96:E4:A6:56:B3:28:5E:DD:FC:AE:86`, expiring 2028-11-06 UTC.
 - **Azure runtime wrapper:** versioned source `providers/exe-dev/az-owner` is projected as `/home/exedev/.local/bin/az-owner`. Every invocation retrieves the PEM from Secret Service, materializes it only below `/run/user/1000`, creates a temporary `AZURE_CONFIG_DIR` on the same tmpfs, performs certificate-based service-principal login for the fixed tenant/subscription, runs the requested `az` command, then removes the temporary PEM and Azure CLI cache. Persistent `~/.azure` is absent after accepted runs.
@@ -30,6 +31,23 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Known boundary:** the headless keyring unlock uses host-encrypted `systemd-creds` material. Root on this VM can decrypt it; no TPM-backed guarantee is claimed. Reboot persistence is VERIFIED on this host, while pause/cold-resume, VM migration and recovery on a replacement host remain UNKNOWN.
 
 The detailed acceptance trail, including the initial Google helper bug and the later Grafana/gcx reboot acceptance, is recorded in [Theseus Research #112](https://github.com/TeaShaman-cyber/theseus-research/issues/112). Session Search observability design, telemetry privacy, dashboard ownership and TraceQL semantics remain tracked in [Session Search #109](https://github.com/TeaShaman-cyber/theseus-session-search-lab/issues/109).
+
+## Zenodo via exe.dev HTTP proxy (2026-11-27)
+
+The governed VM has an attached native HTTP proxy named `zenodo` targeting `https://zenodo.org/`, with provider-side Bearer injection. Routine unpublished draft operations use `https://zenodo.int.exe.xyz/api/` directly, independent of ChatGPT VZ tool discovery. The existing Vercel adapter remains unchanged.
+
+Read-only acceptance probe:
+
+```sh
+curl -fsS https://reflection.int.exe.xyz/integrations |
+  jq -e '[.integrations[].name] | index("zenodo") != null'
+curl -fsS -H 'Accept: application/vnd.inveniordm.v1+json'   'https://zenodo.int.exe.xyz/api/user/records?size=20' |
+  jq '{total:.hits.total,records:[.hits.hits[]|{id,status,is_published}]}'
+```
+
+Use current InvenioRDM draft endpoints: POST /api/records creates a draft; GET /api/records/{id}/draft independently verifies it; draft files use initialization, content PUT, commit POST and content readback. Search/list indexing may lag creation; never retry a creation before checking its postcondition. Preserve Git as manuscript authority and Zenodo as its archive projection. Publication, destructive changes and new credential authority remain separate explicit approval boundaries.
+
+Verified in [cloud-shell #39](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/39): credential provisioned through owner-approved Desktop Commander Review Panel and native exe.dev stdin, no raw token in guest or Git; attached integration, existing draft reads, new unpublished preprint draft and byte-identical manuscript file readback. See [research #141](https://github.com/TeaShaman-cyber/theseus-research/issues/141) for manuscript-specific evidence. The reused credential's full scopes were not re-inventoried; no publication capability was exercised. Reboot/migration persistence not independently tested for this integration.
 
 ## Cloudflare via exe.dev proxy (2026-11-20)
 
