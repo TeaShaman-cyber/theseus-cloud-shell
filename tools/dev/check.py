@@ -12,6 +12,8 @@ NEEDED = [
     "providers/exe-dev/README.md",
     "providers/exe-dev/session_search_drive.py",
     "tests/test_session_search_drive.py",
+    "providers/exe-dev/motherduck_native.py",
+    "tests/test_motherduck_native.py",
     "providers/sprites/README.md",
     "providers/marcopolo/README.md",
     "modules/github/README.md",
@@ -45,9 +47,9 @@ assert "persist-credentials: false" in map_wf
 assert "SOURCE_SHA" in map_wf
 assert "github.com/TeaShaman-cyber/theseus-research" in (ROOT / "README.md").read_text()
 result = subprocess.run(
-    [sys.executable, "-m", "unittest", "tests.test_session_search_drive"],
+    [sys.executable, "-m", "unittest", "tests.test_session_search_drive", "tests.test_motherduck_native"],
     cwd=ROOT,
     check=False,
 )
-assert result.returncode == 0, "session search recovery adapter tests failed"
+assert result.returncode == 0, "provider adapter tests failed"
 print(json.dumps({"status": "PASS", "required_paths": len(NEEDED), "map": "non-authoritative", "tests": "PASS"}, sort_keys=True))

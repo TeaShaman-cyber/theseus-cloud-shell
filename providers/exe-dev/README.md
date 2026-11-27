@@ -138,6 +138,24 @@ The small management re-probe from the earlier 2026-11-07 section remains approp
 **Current disposition:** `TURSO_INTEGRATION_ATTACHED=VERIFIED`; `PLATFORM_API=VERIFIED`; `DB_TOKEN_MINT=VERIFIED`; `SQL_OVER_HTTP=VERIFIED`; `SQLITE_UPLOAD=VERIFIED`; `FTS5_UNICODE61=VERIFIED`; `REMOTE_TEMP_FTS5VOCAB=UNAVAILABLE_OBSERVED`; `NATIVE_CHATGPT_TURSO_MCP=VERIFIED_SEPARATE_SURFACE`.
 
 Evidence / coordination: [theseus-cloud-shell#6](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/6), [theseus-cloud-shell#30](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/30), [Repository Search #132](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/issues/132), and merged [Repository Search PR #133](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/pull/133).
+## MotherDuck native DuckDB via exe.dev (2026-11-25)
+
+The attached HTTP Proxy integration `motherduck` targets `https://api.motherduck.com`; exe.dev retains and injects the permanent Bearer credential. Native DuckDB uses a temporary 300-second Read/Write token from the REST API, not an MCP relay. No separate keyring or permanent VM credential is needed.
+
+Run trusted, reviewed SQL files with the governed launcher from the checked-out repository:
+
+```sh
+python3 providers/exe-dev/motherduck_native.py my_db /absolute/path/to/query.sql
+```
+
+The launcher requires the verified single-user account shape (one active human user, no pagination; otherwise it fails closed). It mints a uniquely named token through the provider proxy, gives it to DuckDB only in the child environment, uses temporary HOME/XDG paths on tmpfs, disables core dumps and skips the CLI init file. It imposes a 240-second subprocess timeout, revokes the exact minted token and independently checks absence; ambiguous mint outcomes are reconciled by unique name without reissuing POST. Output is CSV buffered until successful execution and cleanup. Driver error details are suppressed because they may contain credentials. Do not use untrusted SQL or SQL that exports credentials. The temporary token still has the user's read/write authority while valid; tmpfs and revocation do not prove forensic erasure. A hard termination or unavailable cleanup API may leave the token valid until its requested expiry. Reconcile before retrying an ambiguous stateful SQL operation.
+
+**Live acceptance:** local DuckDB 1.5.5 connected to MotherDuck 1.5.6 and read `my_db`. A local 399,960-byte ZSTD Parquet fixture of 100,000 synthetic graph edges was loaded using `CREATE TABLE ... AS SELECT * FROM read_parquet(...)`. A fresh native connection and the separate official ChatGPT MCP both returned 100,000 rows, 100,000 distinct source IDs, and zero formula/NULL/domain mismatches. The unique test table was dropped and catalog readback returned zero remaining tables of that name; the local fixture was removed. No existing table was changed. This is an ingestion-path acceptance, not a benchmark or proof that a complete RH corpus fits the account or the launcher's timeout.
+
+**Status:** `REST_PROXY=VERIFIED`; `NATIVE_DUCKDB=VERIFIED`; `PARQUET_100K_INGEST=VERIFIED`; `SEPARATE_CHATGPT_MCP=VERIFIED`; `FULL_CORPUS_INGEST=UNKNOWN`.
+
+Evidence: [Cloud Shell #32](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/32), [Repository Search #131](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/issues/131). Vendor API: [create token](https://motherduck.com/docs/sql-reference/rest-api/users-create-token/), [revoke token](https://motherduck.com/docs/sql-reference/rest-api/users-delete-token/).
+
 ### Routing summary: direct MCP vs provider-native control
 
 The current control model is intentionally two-layered:
