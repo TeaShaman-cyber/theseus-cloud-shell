@@ -50,3 +50,26 @@ Examples of observed large filenames include several `corpus.sqlite3` objects ar
 ## Next bounded work
 
 First prepare a *read-only* exact-path inventory for the Session Search recovery set, including file identity/hash when needed, origin/generation, owning Issue, current consumers, accepted artifact/rollback responsibilities, and actual recoverable bytes. Then propose a small, separate deletion batch for approval with verifiable postconditions. No new cleanup daemon, automatic glob deletion or background task is authorized by this document.
+
+## Managed disposable scratch (opt-in)
+
+For a **new, reproducible, foreground-only** experiment whose successful command
+has already persisted and verified all required outputs outside scratch, use:
+
+    python3 ~/work/theseus-cloud-shell/providers/exe-dev/managed_scratch.py \
+      --owner owner/repo#123 --source exact-source-or-recovery-id \
+      --purpose 'bounded disposable QA' -- /absolute/path/to/command
+
+The command starts in a private newly allocated directory under
+`~/.cache/theseus-managed-scratch`. Success removes only that directory,
+after confirming that the foreground process group is quiet and the directory
+identity and mount boundary are unchanged. Failure retains files and prints
+a `PENDING_CLEANUP` receipt with the owner and recovery source. A start receipt
+is emitted before execution, so an interrupted run is recoverable. No secrets
+in the owner/source/purpose fields. The caller must not detach workers,
+launch services or leave authoritative outputs in this directory. This is
+cooperative scratch lifecycle management, not a sandbox for hostile commands.
+
+This does not grant deletion authority over existing workspaces, does not
+sweep by age, and does not schedule a daemon. Existing candidates continue
+through the explicit inventory and approval process above.
