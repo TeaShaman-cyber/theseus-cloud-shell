@@ -10,7 +10,11 @@ export HOME="$home"
 bin="$HOME/.local/bin/brain"
 cfg="$HOME/.config/theseus/brain-nous.yaml"
 test "$("$bin" --version)" = 'brain 0.13.2 (commit 377cc5e3ea87a5fcd3abeece18ac8a24a5c6ddea)'
-cmp "$here/nous.yaml" "$cfg"
+for provider in nous openrouter bothub; do
+    profile="$HOME/.config/theseus/brain-$provider.yaml"
+    cmp "$here/$provider.yaml" "$profile"
+    test "$(stat -c %a "$profile")" = 600
+done
 test "$(stat -c %a "$cfg")" = 600
 test "$(stat -c %a "$bin")" = 755
 "$here/install.sh" "$archive"
@@ -22,12 +26,23 @@ test "$("$bin" --version)" = 'brain 0.13.2 (commit 377cc5e3ea87a5fcd3abeece18ac8
 printf '\n# local change\n' >> "$cfg"
 if "$here/install.sh" "$archive"; then exit 1; fi
 grep -q '^# local change$' "$cfg"
+# All profiles are preflighted, so one conflict cannot install another.
+cp "$here/nous.yaml" "$cfg"
+other="$HOME/.config/theseus/brain-bothub.yaml"
+rm "$HOME/.config/theseus/brain-openrouter.yaml"
+printf '\n# local change\n' >> "$other"
+if "$here/install.sh" "$archive"; then exit 1; fi
+test ! -e "$HOME/.config/theseus/brain-openrouter.yaml"
+grep -q '^# local change$' "$other"
+cp "$here/bothub.yaml" "$other"
+"$here/install.sh" "$archive"
 # Existing unrelated executable is never clobbered.
 printf unrelated > "$bin"
 if "$here/install.sh" "$archive"; then exit 1; fi
 test "$(cat "$bin")" = unrelated
 # A fresh install with an invalid archive leaves no binary/config.
-rm -f "$bin" "$cfg"
+rm -f "$bin" "$cfg" "$HOME/.config/theseus/brain-openrouter.yaml" "$HOME/.config/theseus/brain-bothub.yaml"
 if "$here/install.sh" "$home/bad.tar.gz"; then exit 1; fi
 test ! -e "$bin"; test ! -e "$cfg"
+test ! -e "$HOME/.config/theseus/brain-openrouter.yaml"; test ! -e "$HOME/.config/theseus/brain-bothub.yaml"
 echo BRAIN_INSTALL_CONTRACT_PASS

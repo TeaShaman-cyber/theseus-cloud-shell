@@ -250,6 +250,6 @@ Provider-specific Drive IDs, hashes, private filenames, OAuth tokens and corpus 
 
 See [Brain CLI installation and operating contract](../../modules/brain/README.md)
 and the [measured comparison](../../research/advisor-cli/README.md).
-Use the pinned user-local executable with the explicit Nous profile; no copied
+Use the pinned user-local executable with the explicit Nous, OpenRouter or BotHub profile; no copied
 provider credentials, model aliases or automatic retries. This is an optional
 advisory route, not a default model, a worker runtime or a verification gate.
