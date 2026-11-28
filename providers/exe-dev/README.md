@@ -245,3 +245,11 @@ Large recovery projection/evidence objects are staged through the adapter's boun
 stage-file uploads bounded chunks, independently downloads the resulting object, verifies exact size/SHA, deletes the temporary readback copy, and prints only bounded public-safe status metadata. The mode-0600 receipt contains the private Drive ID/size/SHA needed to assemble the subsequent publish spec. Staging never updates the current recovery pointer; publish remains the only pointer-promotion path.
 
 Provider-specific Drive IDs, hashes, private filenames, OAuth tokens and corpus contents are never printed by the adapter or committed here. Accepted evidence remains authority; Drive remains private recovery transport.
+
+## Independent model consultation (Brain CLI)
+
+See [Brain CLI installation and operating contract](../../modules/brain/README.md)
+and the [measured comparison](../../research/advisor-cli/README.md).
+Use the pinned user-local executable with the explicit Nous profile; no copied
+provider credentials, model aliases or automatic retries. This is an optional
+advisory route, not a default model, a worker runtime or a verification gate.
