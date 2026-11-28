@@ -1,0 +1,128 @@
+[
+  {
+    "case": [
+      "ok"
+    ],
+    "exit": 0,
+    "elapsed_ms": 1106,
+    "requests": [
+      {
+        "mode": "ok",
+        "path": "/ok/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"text\": \"synthetic-ok\", \"finish\": \"stop\", \"usage\": {\"completion_tokens\": 3, \"prompt_tokens\": 5, \"total_tokens\": 8}, \"model\": \"test-ok\"}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "rate"
+    ],
+    "exit": 1,
+    "elapsed_ms": 1201,
+    "requests": [
+      {
+        "mode": "rate",
+        "path": "/rate/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"error\": \"RateLimitError\", \"status\": 429}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "server"
+    ],
+    "exit": 1,
+    "elapsed_ms": 1241,
+    "requests": [
+      {
+        "mode": "server",
+        "path": "/server/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"error\": \"InternalServerError\", \"status\": 500}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "bad"
+    ],
+    "exit": 1,
+    "elapsed_ms": 915,
+    "requests": [
+      {
+        "mode": "bad",
+        "path": "/bad/v1/chat/completions",
+        "model": "test-bad",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"error\": \"JSONDecodeError\", \"status\": null}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "empty"
+    ],
+    "exit": 2,
+    "elapsed_ms": 771,
+    "requests": [
+      {
+        "mode": "empty",
+        "path": "/empty/v1/chat/completions",
+        "model": "test-empty",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"text\": \"\", \"finish\": \"stop\", \"usage\": {\"completion_tokens\": 3, \"prompt_tokens\": 5, \"total_tokens\": 8}, \"model\": \"test-empty\"}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "length"
+    ],
+    "exit": 2,
+    "elapsed_ms": 854,
+    "requests": [
+      {
+        "mode": "length",
+        "path": "/length/v1/chat/completions",
+        "model": "test-length",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"text\": \"synthetic-length\", \"finish\": \"length\", \"usage\": {\"completion_tokens\": 3, \"prompt_tokens\": 5, \"total_tokens\": 8}, \"model\": \"test-length\"}\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "slow"
+    ],
+    "exit": 1,
+    "elapsed_ms": 2400,
+    "requests": [
+      {
+        "mode": "slow",
+        "path": "/slow/v1/chat/completions",
+        "model": "test-slow",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "{\"error\": \"APITimeoutError\", \"status\": null}\n",
+    "stderr": ""
+  }
+]

@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+import sys,os,time,json
+from pathlib import Path
+if '--version' in sys.argv: print('codex-cli 0.46.0'); sys.exit(0)
+if sys.argv[1:]==['login','status']: print('fixture login'); sys.exit(0)
+assert sys.argv[sys.argv.index('--sandbox')+1]=='read-only'
+Path(os.environ['WITNESS']).open('a').write(json.dumps({'provider':'codex','pid':os.getpid()})+'\n')
+mode=os.environ['FIXTURE_MODE']
+if mode=='slow':
+ print(json.dumps({'type':'thread.started','thread_id':'fixture'}),flush=True)
+ time.sleep(15)
+elif mode=='fail':
+ print(json.dumps({'type':'error','message':'fixture provider refused'}),flush=True)
+ sys.exit(1)
+elif mode=='partial':
+ print(json.dumps({'type':'item.completed','item':{'type':'agent_message','text':'Unfinished observation'}}),flush=True)
+else:
+ print(json.dumps({'type':'item.completed','item':{'type':'agent_message','text':'Fixture independent review'}}),flush=True)
+ print(json.dumps({'type':'turn.completed','usage':{'input_tokens':10,'output_tokens':4,'total_tokens':14}}),flush=True)

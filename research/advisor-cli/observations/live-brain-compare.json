@@ -1,0 +1,31 @@
+{
+  "responses": [
+    {
+      "model": "upstage/solar-mini4:free",
+      "ok": true,
+      "content": "**Counterexample to exactly-once:** Job A is processed, its effects are committed in the ledger (`COMMIT`), but the queue ack is not written (`NO_ACK`). On restart, the service reprocesses job A idempotent/locally, writes duplicate effects, and only then acks. The system therefore has **at-least-once execution** (one ack per delivery) but cannot guarantee **exactly-once completion** with its two‑phase commit sequence, because the ledger’s append-only nature preserves both the job and any partial re-execution.\n\n**Invariant:** `COMPLETED(line) ⇒ ACKED(line)` — a committed execution must be durably acknowledged before it is considered complete. Equivalently, the ledger must not contain an uncommitted/acknowledged‑mismatch row, and the ack must persist before the job is retried. This prevents duplicate *committed effects*: if a job’s effects are in the ledger, the ack is guaranteed present, so a restart will skip the duplicate.\n\n**Fault‑injection test:** Simulate a power loss right after a `COMMIT` but before the `ACK` in the ledger. Verify that the consumer redisassembles the job on recovery and applies the **same idempotent apply** routine (or checks for existing effects) so that committing twice does not create a second effect instance. The test asserts the ledger contains exactly one committed effect per job and that queue positions are acknowledged only after a second commit is prevented or idempotently merged.",
+      "usage": {
+        "prompt_tokens": 120,
+        "completion_tokens": 298,
+        "total_tokens": 418
+      },
+      "finish_reason": "stop",
+      "latency_ms": 3392,
+      "error": null
+    },
+    {
+      "model": "stepfun/step-3.7-flash:free",
+      "ok": true,
+      "content": "**Counterexample to exactly‑once:**  \nThe service first commits a completion record to the append‑only ledger, then acknowledges the queue message in a separate transaction. A crash after the ledger commit but before the acknowledgement leaves the message unacked. On restart the message is redelivered, so the job is processed again and a second completion record is written – duplicate effects.\n\n**Invariant preventing duplicate committed effects:**  \nThe ledger must enforce that for any job identifier there is **at most one** completion record (e.g., via a unique key or an idempotent write check). This guarantees the durable side‑effect is not duplicated even if the processing repeats.\n\n**Fault‑injection test:**  \nSimulate a crash (e.g., kill the process) immediately after the ledger transaction commits but before the queue ack. Restart the service and assert that the ledger contains exactly one completion record for the job and that any external side effects are not duplicated (or are safely idempotent).\n\n**Execution vs. durable effects:**  \n*Execution* is the in‑memory computation and any transient side effects (e.g., calls to external services). *Durable effects* are the persistent state changes (the ledger write) that survive crashes. Exactly‑once semantics require both to occur once, but they can be decoupled; durable effects can be deduplicated by the invariant, while execution may need additional idempotency or replay protection.",
+      "usage": {
+        "prompt_tokens": 94,
+        "completion_tokens": 1660,
+        "total_tokens": 1754
+      },
+      "finish_reason": "stop",
+      "latency_ms": 10682,
+      "error": null
+    }
+  ],
+  "error": null
+}

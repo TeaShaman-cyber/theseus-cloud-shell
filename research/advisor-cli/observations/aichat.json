@@ -1,0 +1,128 @@
+[
+  {
+    "case": [
+      "ok"
+    ],
+    "exit": 0,
+    "elapsed_ms": 79,
+    "requests": [
+      {
+        "mode": "ok",
+        "path": "/ok/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "synthetic-ok\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "rate"
+    ],
+    "exit": 1,
+    "elapsed_ms": 22,
+    "requests": [
+      {
+        "mode": "rate",
+        "path": "/rate/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Failed to call chat-completions api\n\nCaused by:\n    synthetic rate limit (type: rate_limit_error)\n"
+  },
+  {
+    "case": [
+      "server"
+    ],
+    "exit": 1,
+    "elapsed_ms": 24,
+    "requests": [
+      {
+        "mode": "server",
+        "path": "/server/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Failed to call chat-completions api\n\nCaused by:\n    Invalid response data: {\"error\":{\"message\":\"synthetic server error\"}} (status: 500)\n"
+  },
+  {
+    "case": [
+      "bad"
+    ],
+    "exit": 1,
+    "elapsed_ms": 25,
+    "requests": [
+      {
+        "mode": "bad",
+        "path": "/bad/v1/chat/completions",
+        "model": "test-bad",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Failed to call chat-completions api\n\nCaused by:\n    0: error decoding response body\n    1: key must be a string at line 1 column 2\n"
+  },
+  {
+    "case": [
+      "empty"
+    ],
+    "exit": 1,
+    "elapsed_ms": 23,
+    "requests": [
+      {
+        "mode": "empty",
+        "path": "/empty/v1/chat/completions",
+        "model": "test-empty",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Failed to call chat-completions api\n\nCaused by:\n    Invalid response data: {\"id\":\"fixture\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"test-empty\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8}}\n"
+  },
+  {
+    "case": [
+      "length"
+    ],
+    "exit": 0,
+    "elapsed_ms": 21,
+    "requests": [
+      {
+        "mode": "length",
+        "path": "/length/v1/chat/completions",
+        "model": "test-length",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "synthetic-length\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "slow"
+    ],
+    "exit": 0,
+    "elapsed_ms": 2022,
+    "requests": [
+      {
+        "mode": "slow",
+        "path": "/slow/v1/chat/completions",
+        "model": "test-slow",
+        "max_tokens": 64,
+        "stream": null
+      }
+    ],
+    "stdout": "synthetic-slow\n",
+    "stderr": ""
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "status": "partial",
+  "exit_code": 1,
+  "outputs": [
+    {
+      "invocation_id": "solar",
+      "provider": "pi",
+      "model": "upstage/solar-mini4:free",
+      "status": "success",
+      "transport_status": "succeeded",
+      "output": "The `withdraw` function has boundary and validation defects in its condition.\n\n## Defects\n\n1. **Rejects a valid zero withdrawal**\n   - Condition `amount >= balance` treats `amount == 0` as an error when `balance == 0`, and the error message implies insufficient funds.\n   - Withdrawing `0` from any non-negative balance (e.g., `withdraw(100, 0)`) is a valid no-op operation, but raises `ValueError`.\n\n2. **Does not validate negative inputs**\n   - The function only checks `amount >= balance`, so negative values silently pass and produce incorrect results:\n     - `withdraw(100, -50)` returns `150` (adds money instead of rejecting).\n     - `withdraw(-100, 0)` returns `0`.\n   - It also does not validate a negative `balance`, and the semantics of “insufficient” for negative balances are unclear.\n\n3. **Mixed/unclear boundary semantics**\n   - The condition should distinguish:\n     - `amount < 0` → invalid input (raise, e.g., `ValueError`)\n     - `amount == 0` → valid (return `balance`)\n     - `amount > balance` → insufficient (raise)\n     - `amount == balance` → valid (return `0`)\n\n## Concrete counterexamples\n\n| Input | Expected | Actual | Problem |\n|---|---|---|---|\n| `withdraw(0, 0)` | `0` | raises `ValueError(\"insufficient\")` | valid zero withdrawal rejected |\n| `withdraw(100, 0)` | `100` | raises `ValueError(\"insufficient\")` | valid zero withdrawal rejected |\n| `withdraw(100, -10)` | raise (invalid amount) | `110` | negative amount accepted, adds funds |\n| `withdraw(-100, 0)` | raise or defined behavior | `0` | negative balance not validated |\n| `withdraw(0, -1)` | raise | `1` | negative amount accepted |\n\n## Proposed tests\n\n```python\ndef test_withdraw_valid_zero():\n    assert withdraw(100, 0) == 100\n    assert withdraw(0, 0) == 0\n\ndef test_withdraw_valid_exact():\n    assert withdraw(100, 100) == 0\n\ndef test_withdraw_valid_positive():\n    assert withdraw(100, 50) == 50\n\ndef test_withdraw_insufficient():\n    with pytest.raises(ValueError):\n        withdraw(100, 101)\n\ndef test_withdraw_negative_amount():\n    with pytest.raises(ValueError):\n        withdraw(100, -1)\n\ndef test_withdraw_negative_balance():\n    with pytest.raises(ValueError):\n        withdraw(-100, 0)\n\ndef test_withdraw_negative_balance_amount():\n    with pytest.raises(ValueError):\n        withdraw(100, -10)\n```\n\n## Minimal proposed implementation (reference only, not applied)\n\n```python\ndef withdraw(balance, amount):\n    if balance < 0:\n        raise ValueError(\"negative balance\")\n    if amount < 0:\n        raise ValueError(\"negative amount\")\n    if amount > balance:\n        raise ValueError(\"insufficient\")\n    return balance - amount\n```\n\nThe exact acceptable boundaries depend on your domain (e.g., whether `balance == 0` with `amount == 0` is valid, and whether negative balances must be rejected), but the current `>=` condition clearly conflates valid boundaries with invalid cases.",
+      "error": null,
+      "usage": null
+    },
+    {
+      "invocation_id": "step",
+      "provider": "pi",
+      "model": "stepfun/step-3.7-flash:free",
+      "status": "failed",
+      "transport_status": "failed",
+      "output": null,
+      "error": "completed",
+      "usage": null
+    }
+  ]
+}

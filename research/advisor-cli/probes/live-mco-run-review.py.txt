@@ -1,0 +1,81 @@
+import http.server,threading,json,subprocess,os,time,pathlib,urllib.request,urllib.error,collections
+d=pathlib.Path.cwd()
+models={'upstage/solar-mini4:free','stepfun/step-3.7-flash:free'}
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+ def redirect_request(self,*args,**kwargs):return None
+opener=urllib.request.build_opener(NoRedirect())
+with opener.open('https://nous.int.exe.xyz/v1/models',timeout=10) as r:
+ catalog=json.load(r)['data']
+assert {m['id'] for m in catalog if m['id'] in models and m.get('pricing') and all(v in ('0',0) for v in m['pricing'].values())}==models
+lock=threading.Lock()
+counts=collections.Counter()
+stopped=False
+witness=d/'wire.jsonl'
+def record(event,**data):
+ with lock:
+  with witness.open('a') as f:f.write(json.dumps({'event':event,**data})+'\n')
+class Handler(http.server.BaseHTTPRequestHandler):
+ def log_message(self,*args):pass
+ def do_POST(self):
+  global stopped
+  try:
+   n=int(self.headers.get('Content-Length','0'))
+   assert self.path=='/v1/chat/completions' and 0<n<100000
+   raw=self.rfile.read(n);b=json.loads(raw)
+   model=b['model']
+   assert model in models and b.get('stream') is True
+   assert type(b.get('max_tokens')) is int and 0<b['max_tokens']<=1024
+   assert b.get('tags')==['user=theseus-review']
+   tools=[t['function']['name'] for t in b.get('tools',[])]
+   assert set(tools)<= {'read','grep','find','ls'}
+  except Exception:
+   record('local_rejected',path=self.path)
+   self.send_error(400);return
+  with lock:
+   allowed=not stopped and counts[model]<3 and sum(counts.values())<6
+   if allowed:counts[model]+=1
+  if not allowed:
+   record('budget_or_stop',model=model);self.send_error(429);return
+  record('dispatch',model=model,cap=b['max_tokens'],tools=tools,messages=len(b['messages']))
+  req=urllib.request.Request('https://nous.int.exe.xyz/v1/chat/completions',data=raw,headers={'Content-Type':'application/json','Accept':'text/event-stream'},method='POST')
+  try:
+   with opener.open(req,timeout=25) as response:
+    record('response',model=model,status=response.status,content_type=response.headers.get('Content-Type'))
+    if 'text/event-stream' not in response.headers.get('Content-Type','').lower():
+     with lock:stopped=True
+     self.send_error(502);return
+    self.send_response(response.status);self.send_header('Content-Type','text/event-stream');self.send_header('Connection','close');self.end_headers()
+    for line in response:
+     if line.startswith(b'data: '):
+      try:
+       obj=json.loads(line[6:])
+       finish=[c.get('finish_reason') for c in obj.get('choices',[]) if c.get('finish_reason')]
+       if finish or obj.get('usage'):record('terminal_metadata',model=model,finish=finish,usage=obj.get('usage'))
+      except (ValueError,TypeError):pass
+     self.wfile.write(line);self.wfile.flush()
+    record('eof',model=model)
+  except urllib.error.HTTPError as e:
+   with lock:stopped=True
+   record('upstream_error',model=model,status=e.code,content_type=e.headers.get('Content-Type'))
+   self.send_error(e.code)
+  except Exception as e:
+   with lock:stopped=True
+   record('upstream_unknown',model=model,error=type(e).__name__)
+   try:self.send_error(502)
+   except OSError:pass
+server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler)
+thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+p=d/'config/models.json'
+cfg=json.loads(p.read_text())
+cfg['providers']['advisor']['baseUrl']=f'http://127.0.0.1:{server.server_port}/v1'
+p.write_text(json.dumps(cfg,indent=2))
+env={'PATH':str(d/'bin')+':/usr/bin:/bin','HOME':str(d),'XDG_CONFIG_HOME':str(d),'LANG':'C.UTF-8'}
+cmd=['/usr/bin/python3',str(d.parent/'mco-source/mco'),'review','--repo',str(d/'repo'),'--agent','solar=pi:upstage/solar-mini4:free','--agent','step=pi:stepfun/step-3.7-flash:free','--provider-models-json','{"pi":{"provider":"advisor"}}','--execution-mode','read_only','--enforcement-mode','strict','--invocation-hard-timeout','35','--review-hard-timeout','55','--max-provider-parallelism','1','--include-token-usage','--prompt','Read account.py only. Identify boundary or validation defects in withdraw. Give concrete counterexamples and proposed tests; do not edit anything.','--json']
+start=time.monotonic()
+try:
+ with (d/'result.json').open('x') as out,(d/'stderr.log').open('x') as err:
+  r=subprocess.run(cmd,env=env,stdout=out,stderr=err,timeout=62)
+ (d/'exit').write_text(str(r.returncode))
+finally:
+ server.shutdown();server.server_close()
+ record('end',counts=dict(counts),elapsed_ms=round((time.monotonic()-start)*1000),stopped=stopped)

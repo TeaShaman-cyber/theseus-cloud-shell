@@ -1,0 +1,247 @@
+{
+  "command": "review",
+  "dry_run": true,
+  "would_execute": false,
+  "review_mode": true,
+  "repo_root": "<LAB>/mco-fixture",
+  "providers": [
+    "codex",
+    "claude",
+    "pi"
+  ],
+  "target_paths": [
+    "."
+  ],
+  "transport": "shim",
+  "result_mode": "stdout",
+  "write_artifacts": false,
+  "artifact_base": "<LAB>/mco-source/reports/review",
+  "task_id": null,
+  "prompt": {
+    "chars": 48,
+    "sha256": "754c92f581668290715ec2aaa7256daddd4c1b8925b1d9bb0234a3966bee261c"
+  },
+  "policy": {
+    "allow_paths": [
+      "."
+    ],
+    "enforcement_mode": "strict",
+    "execution_mode": "read_only",
+    "provider_permissions": {
+      "codex": {
+        "sandbox": "read-only",
+        "approval_policy": "never"
+      },
+      "claude": {
+        "permission_mode": "plan"
+      },
+      "pi": {
+        "tool_profile": "read_only"
+      }
+    },
+    "provider_models": {},
+    "provider_context": {},
+    "perspectives": {},
+    "chain": false,
+    "debate": false,
+    "divide": ""
+  },
+  "providers_detail": {
+    "codex": {
+      "default_risk": {
+        "level": "workspace_write",
+        "reason": "default command uses Codex workspace-write sandbox"
+      },
+      "risk": {
+        "level": "read_only",
+        "reason": "effective Codex sandbox=read-only"
+      },
+      "policy": {
+        "enforcement_mode": "strict",
+        "requested_permissions": {
+          "sandbox": "read-only",
+          "approval_policy": "never"
+        },
+        "applied_permissions": {
+          "sandbox": "read-only",
+          "approval_policy": "never"
+        },
+        "supported_permission_keys": [
+          "approval_policy",
+          "bypass",
+          "sandbox"
+        ],
+        "unknown_permission_keys": [],
+        "requested_model": {},
+        "applied_model": {},
+        "supported_model_keys": [
+          "model"
+        ],
+        "unknown_model_keys": [],
+        "requested_context": {},
+        "applied_context": {},
+        "supported_context_keys": [
+          "context_files"
+        ],
+        "unknown_context_keys": [],
+        "incompatible_context_keys": [],
+        "dropped_context_keys": [],
+        "would_fail_strict": false,
+        "failure_reason": ""
+      },
+      "command_template": [
+        "codex",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "--skip-git-repo-check",
+        "-C",
+        "<LAB>/mco-fixture",
+        "--sandbox",
+        "read-only",
+        "--json",
+        "<prompt>"
+      ]
+    },
+    "claude": {
+      "default_risk": {
+        "level": "read_only",
+        "reason": "default command uses Claude plan permission mode"
+      },
+      "risk": {
+        "level": "read_only",
+        "reason": "effective Claude permission_mode=plan"
+      },
+      "policy": {
+        "enforcement_mode": "strict",
+        "requested_permissions": {
+          "permission_mode": "plan"
+        },
+        "applied_permissions": {
+          "permission_mode": "plan"
+        },
+        "supported_permission_keys": [
+          "permission_mode"
+        ],
+        "unknown_permission_keys": [],
+        "requested_model": {},
+        "applied_model": {},
+        "supported_model_keys": [],
+        "unknown_model_keys": [],
+        "requested_context": {},
+        "applied_context": {},
+        "supported_context_keys": [
+          "context_files"
+        ],
+        "unknown_context_keys": [],
+        "incompatible_context_keys": [],
+        "dropped_context_keys": [],
+        "would_fail_strict": false,
+        "failure_reason": ""
+      },
+      "command_template": [
+        "claude",
+        "-p",
+        "--permission-mode",
+        "plan",
+        "--output-format",
+        "text",
+        "<prompt>"
+      ]
+    },
+    "pi": {
+      "default_risk": {
+        "level": "read_only",
+        "reason": "default command locks Pi tools to read,grep,find,ls and disables extensions"
+      },
+      "risk": {
+        "level": "read_only",
+        "reason": "effective Pi tool_profile=read_only"
+      },
+      "policy": {
+        "enforcement_mode": "strict",
+        "requested_permissions": {
+          "tool_profile": "read_only"
+        },
+        "applied_permissions": {
+          "tool_profile": "read_only"
+        },
+        "supported_permission_keys": [
+          "tool_profile"
+        ],
+        "unknown_permission_keys": [],
+        "requested_model": {},
+        "applied_model": {},
+        "supported_model_keys": [
+          "model",
+          "provider"
+        ],
+        "unknown_model_keys": [],
+        "requested_context": {},
+        "applied_context": {},
+        "supported_context_keys": [
+          "context_files",
+          "skills"
+        ],
+        "unknown_context_keys": [],
+        "incompatible_context_keys": [],
+        "dropped_context_keys": [],
+        "would_fail_strict": false,
+        "failure_reason": ""
+      },
+      "command_template": [
+        "pi",
+        "-p",
+        "--mode",
+        "json",
+        "--no-session",
+        "--no-context-files",
+        "--no-skills",
+        "--no-extensions",
+        "--tools",
+        "read,grep,find,ls",
+        "--",
+        "<prompt>"
+      ]
+    }
+  },
+  "provider_prompts": {
+    "codex": "Read only. Identify the exact balance edge case.",
+    "claude": "Read only. Identify the exact balance edge case.",
+    "pi": "Read only. Identify the exact balance edge case."
+  },
+  "invocations": [
+    {
+      "invocation_id": "codex-default",
+      "provider": "codex",
+      "model": "default",
+      "target_paths": [
+        "."
+      ],
+      "prompt": "Read only. Identify the exact balance edge case."
+    },
+    {
+      "invocation_id": "claude-default",
+      "provider": "claude",
+      "model": "default",
+      "target_paths": [
+        "."
+      ],
+      "prompt": "Read only. Identify the exact balance edge case."
+    },
+    {
+      "invocation_id": "pi-default",
+      "provider": "pi",
+      "model": "default",
+      "target_paths": [
+        "."
+      ],
+      "prompt": "Read only. Identify the exact balance edge case."
+    }
+  ],
+  "execution_mode": "read_only",
+  "synthesis": {
+    "enabled": false,
+    "provider": null
+  }
+}

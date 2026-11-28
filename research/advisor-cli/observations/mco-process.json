@@ -1,0 +1,74 @@
+[
+  {
+    "case": "ok",
+    "exit": 0,
+    "elapsed_ms": 435,
+    "launches": [
+      {
+        "provider": "codex",
+        "pid": 1007613
+      },
+      {
+        "provider": "claude",
+        "pid": 1007614
+      }
+    ],
+    "remaining_pids": [],
+    "stdout": "{\"stage\": \"run\", \"task_id\": \"run-47d79675\", \"status\": \"complete\", \"outputs\": [{\"invocation_id\": \"claude-default\", \"provider\": \"claude\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Fixture review: equality rejects a valid withdrawal.\\n\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Fixture review: equality rejects a valid withdrawal.\\n\"], \"transport_status\": \"succeeded\", \"artifact_path\": null, \"stage\": \"run\"}, {\"invocation_id\": \"codex-default\", \"provider\": \"codex\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Fixture independent review\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Fixture independent review\"], \"transport_status\": \"succeeded\", \"artifact_path\": null, \"usage\": {\"prompt_tokens\": 10, \"completion_tokens\": 4, \"total_tokens\": 14}, \"stage\": \"run\"}], \"exit_code\": 0, \"artifact_root\": null}\n",
+    "stderr": ""
+  },
+  {
+    "case": "fail",
+    "exit": 1,
+    "elapsed_ms": 551,
+    "launches": [
+      {
+        "provider": "claude",
+        "pid": 1007621
+      },
+      {
+        "provider": "codex",
+        "pid": 1007622
+      }
+    ],
+    "remaining_pids": [],
+    "stdout": "{\"stage\": \"run\", \"task_id\": \"run-2292fecb\", \"status\": \"partial\", \"outputs\": [{\"invocation_id\": \"claude-default\", \"provider\": \"claude\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Fixture review: equality rejects a valid withdrawal.\\n\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Fixture review: equality rejects a valid withdrawal.\\n\"], \"transport_status\": \"succeeded\", \"artifact_path\": null, \"stage\": \"run\"}, {\"invocation_id\": \"codex-default\", \"provider\": \"codex\", \"model\": \"default\", \"status\": \"failed\", \"output\": null, \"error\": \"completed\", \"exit_code\": 1, \"deltas\": [], \"transport_status\": \"failed\", \"artifact_path\": null, \"stage\": \"run\"}], \"exit_code\": 1, \"artifact_root\": null}\n",
+    "stderr": ""
+  },
+  {
+    "case": "slow",
+    "exit": 1,
+    "elapsed_ms": 2609,
+    "launches": [
+      {
+        "provider": "claude",
+        "pid": 1007630
+      },
+      {
+        "provider": "codex",
+        "pid": 1007629
+      }
+    ],
+    "remaining_pids": [],
+    "stdout": "{\"stage\": \"run\", \"task_id\": \"run-74a057df\", \"status\": \"partial\", \"outputs\": [{\"invocation_id\": \"claude-default\", \"provider\": \"claude\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Fixture review: equality rejects a valid withdrawal.\\n\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Fixture review: equality rejects a valid withdrawal.\\n\"], \"transport_status\": \"succeeded\", \"artifact_path\": null, \"stage\": \"run\"}, {\"invocation_id\": \"codex-default\", \"provider\": \"codex\", \"model\": \"default\", \"status\": \"timeout\", \"output\": null, \"error\": \"invocation 'codex-default' timed out\", \"exit_code\": null, \"deltas\": [], \"transport_status\": \"timeout\", \"artifact_path\": null, \"stage\": \"run\"}], \"exit_code\": 1, \"artifact_root\": null}\n",
+    "stderr": ""
+  },
+  {
+    "case": "partial",
+    "exit": 0,
+    "elapsed_ms": 582,
+    "launches": [
+      {
+        "provider": "claude",
+        "pid": 1007638
+      },
+      {
+        "provider": "codex",
+        "pid": 1007637
+      }
+    ],
+    "remaining_pids": [],
+    "stdout": "{\"stage\": \"run\", \"task_id\": \"run-59d6d7f6\", \"status\": \"complete\", \"outputs\": [{\"invocation_id\": \"claude-default\", \"provider\": \"claude\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Fixture review: equality rejects a valid withdrawal.\\n\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Fixture review: equality rejects a valid withdrawal.\\n\"], \"transport_status\": \"succeeded\", \"artifact_path\": null, \"stage\": \"run\"}, {\"invocation_id\": \"codex-default\", \"provider\": \"codex\", \"model\": \"default\", \"status\": \"success\", \"output\": \"Unfinished observation\", \"error\": null, \"exit_code\": 0, \"deltas\": [\"Unfinished observation\"], \"transport_status\": \"running\", \"artifact_path\": null, \"stage\": \"run\"}], \"exit_code\": 0, \"artifact_root\": null}\n",
+    "stderr": ""
+  }
+]
