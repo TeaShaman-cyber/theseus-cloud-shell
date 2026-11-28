@@ -14,6 +14,8 @@ NEEDED = [
     "tests/test_session_search_drive.py",
     "providers/exe-dev/motherduck_native.py",
     "tests/test_motherduck_native.py",
+    "providers/exe-dev/managed_scratch.py",
+    "tests/test_managed_scratch.py",
     "providers/sprites/README.md",
     "providers/marcopolo/README.md",
     "modules/github/README.md",
@@ -47,7 +49,7 @@ assert "persist-credentials: false" in map_wf
 assert "SOURCE_SHA" in map_wf
 assert "github.com/TeaShaman-cyber/theseus-research" in (ROOT / "README.md").read_text()
 result = subprocess.run(
-    [sys.executable, "-m", "unittest", "tests.test_session_search_drive", "tests.test_motherduck_native"],
+    [sys.executable, "-m", "unittest", "tests.test_session_search_drive", "tests.test_motherduck_native", "tests.test_managed_scratch"],
     cwd=ROOT,
     check=False,
 )
