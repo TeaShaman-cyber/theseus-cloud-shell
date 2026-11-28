@@ -11,6 +11,7 @@ Observed current state on `theseus-exe-shell-probe`:
 - **Cloudflare (2026-11-20):** exe.dev's `cloudflare` integration is configured and attached to the currently verified VM. Guest Reflection listed its attachment and the credential-injecting proxy returned HTTP 200 from a read-only `GET https://cloudflare.int.exe.xyz/client/v4/accounts`. The independent native ChatGPT Cloudflare connector also successfully listed accounts. These are separate credential and authority surfaces; neither proves the other's mutation permissions. See [Cloudflare via exe.dev proxy](#cloudflare-via-exedev-proxy-2026-11-20).
 - **LLM/provider integrations (2026-11-21):** the primary VM currently exposes attached OpenRouter, BotHub, Groq, and NVIDIA NIM routes through exe.dev integrations. The NVIDIA integration is currently named `nvidi-nim` (configured name), targets `https://integrate.api.nvidia.com/` with provider-side Bearer injection, and a guest read-only `GET https://nvidi-nim.int.exe.xyz/v1/models` returned HTTP 200 with 33 model IDs. Presence of the other provider integrations is attachment evidence only unless a target probe is recorded separately. See [LLM/provider integrations](#llmprovider-integrations-2026-11-21) and [cloud-shell issue #22](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/22).
 - **Turso Platform API + libSQL data plane:** exe.dev integration `turso` is attached and keeps the Platform API credential provider-side. The 2026-11-22 Repository Search work verified short-lived DB-token minting, SQLite upload, SQL-over-HTTP readback, and FTS5/`unicode61` queries without persisting a Turso platform credential in the guest. Native ChatGPT Turso MCP is a separate credential/authority surface. See [the Turso route](#turso-platform-api-and-libsql-data-plane-via-exedev) and [cloud-shell issue #30](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/30).
+- **Supabase (2026-11-28):** native catalog API integration `supabase` is attached to the governed VM for the isolated Observatory project. Provider-side server credential, REST CRUD and analytical RPC verified; native Supabase MCP independently provides SQL and migrations. See [Supabase REST and MCP](#supabase-rest-and-mcp-2026-11-28).
 - **Zenodo:** native provider-held HTTP proxy `zenodo` is attached to the governed VM; authenticated draft list, creation and manuscript file upload/readback verified. See [Zenodo via exe.dev](#zenodo-via-exedev-http-proxy-2026-11-27).
 - **Azure control plane:** official Azure CLI 2.92.0 is installed from the Microsoft Ubuntu repository. Dedicated service principal `theseus-exe-operator` (`appId 9d03ca4c-53e1-4b57-9acf-728d4985457d`) has Azure RBAC `Owner` at subscription scope `/subscriptions/d760fa4b-978b-4b6d-a62e-93b55bc36746`. This is the explicitly authorized full Azure operator identity for the cloud shell; the narrower existing Translator workload identity remains unchanged.
 - **Azure certificate/keyring:** the service-principal private key was generated on this exe.dev VM and never transferred to the laptop or chat. The combined private-key + public-certificate PEM is stored in GNOME Secret Service under `app=theseus, credential=azure-exe-operator`; only the public certificate was uploaded through the already authenticated Windows Azure CLI. Certificate SHA-256 fingerprint is `A8:61:CD:48:39:6A:AF:89:63:D1:E6:15:9A:81:87:F7:DA:F1:2D:D0:AC:96:E4:A6:56:B3:28:5E:DD:FC:AE:86`, expiring 2028-11-06 UTC.
@@ -263,3 +264,54 @@ and the [measured comparison](../../research/advisor-cli/README.md).
 Use the pinned user-local executable with the explicit Nous, OpenRouter or BotHub profile; no copied
 provider credentials, model aliases or automatic retries. This is an optional
 advisory route, not a default model, a worker runtime or a verification gate.
+
+
+## Supabase REST and MCP (2026-11-28)
+
+Scope: isolated `theseus-observatory` project, Frankfurt, PostgreSQL 17.12,
+creation quote USD 0/month. Authority and workload research:
+[Observatory #35](https://github.com/TeaShaman-cyber/theseus-public-observatory/issues/35).
+The native catalog API integration is named `supabase` on the verified VM.
+Re-probe attachment and the target project rather than assuming this name or
+billing status remains current.
+
+- Owner configures Supabase (API) with the intended project ref and a server-side
+  secret API key. Keep the secret in exe.dev's credential boundary, never in
+  browser code, repository files, chat, guest environment or logs.
+  The secret key bypasses RLS: treat every process on an attached VM as
+  privileged for the project. Scope attachment to the intended VM. Do not
+  expose the proxy through a public application or attach it indiscriminately.
+- A publishable key only provides anonymous/client access; initial auth health
+  HTTP 200 did not establish server-side capability. REST root returned HTTP 401
+  with that key. Owner recreated the integration with a secret key; actual
+  auth health and REST OpenAPI root then returned HTTP 200.
+- Guest route: `https://supabase.int.exe.xyz/rest/v1/<table>` and
+  `/rest/v1/rpc/<function>`. The provider injects credentials. No key is
+  needed in curl or client headers. Restrict grants, enable RLS on exposed
+  tables, use security-invoker functions with explicit EXECUTE grants, and
+  revoke default public/anon/authenticated access unless required.
+- Native Supabase MCP is a separate authority domain: SQL, migrations and
+  extension administration. It is not a guest SQL transport. REST permits
+  table operations and explicit RPCs, not arbitrary SQL text.
+- Acceptance: [CRUD receipt](https://github.com/TeaShaman-cyber/theseus-public-observatory/issues/35#issuecomment-7239354260).
+  POST 201, GET/PATCH/DELETE 200, independent SQL readback, test table removed.
+  Analytical RPC fixture JOIN + partitioned LAG returned all four exact rows
+  (HTTP 200, 106 ms guest wall); no broad SQL-execution RPC was installed.
+- Autonomous scheduler canary: pg_cron 1.6.4 and pg_net 0.20.4 enabled.
+  A 10-second one-shot job ran successfully and self-unscheduled; one public
+  GitHub API GET returned HTTP 200. Independent REST readback matched the
+  request ID. Temporary table/RPC removed and job absence verified. Extensions
+  and migration/run history remain. Persist durable probe receipts explicitly;
+  pg_net responses are transient. This is a capability test, not a guarantee
+  of scheduling precision or continuous operation on the free plan.
+  [Scheduler receipt](https://github.com/TeaShaman-cyber/theseus-public-observatory/issues/35#issuecomment-7239482533).
+- A separate native `db:supabase` PostgreSQL broker is **not needed currently**.
+  Revisit only for an evidenced requirement such as arbitrary guest SQL,
+  interactive transactions, COPY, or tooling that cannot use REST/RPC.
+  CI credentials and GitHub integration remain separate from VM and MCP
+  credentials; no assumption of CI authorization from these tests.
+
+Vendor references: [API keys](https://supabase.com/docs/guides/api/api-keys),
+[database functions](https://supabase.com/docs/guides/database/functions),
+[Cron](https://supabase.com/docs/guides/cron),
+[pg_net](https://supabase.com/docs/guides/database/extensions/pg_net).
