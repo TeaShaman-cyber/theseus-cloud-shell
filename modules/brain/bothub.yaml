@@ -1,0 +1,7 @@
+base_url: https://bothub-api.int.exe.xyz/v1
+api_key: synthetic-placeholder
+default_model: nemotron-3-nano-omni-30b-a3b-reasoning:free
+retry_max: 0
+timeout_seconds: 60
+max_input_bytes: 65536
+aliases: {}

@@ -1,0 +1,7 @@
+base_url: https://openrouter.int.exe.xyz/api/v1
+api_key: synthetic-placeholder
+default_model: baidu/ernie-5.5-flash-preview:free
+retry_max: 0
+timeout_seconds: 60
+max_input_bytes: 65536
+aliases: {}
