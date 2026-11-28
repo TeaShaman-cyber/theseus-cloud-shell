@@ -71,7 +71,13 @@ directory is removed when its identity and boundaries are still verified.
 For renamed scratch, the receipt records the retained device/inode and the
 matching direct child of the private root when observable; otherwise its
 location remains unknown. SIGINT, SIGTERM, SIGHUP and SIGQUIT are relayed to
-the managed foreground process group. No secrets
+the managed foreground process group. Ctrl-Z suspends the group with the
+wrapper; SIGCONT resumes it. A gated child cannot execute the command until
+the wrapper commits launch; termination already recorded or pending at that
+decision cancels execution. After launch authorization, termination is
+ordinary process-group shutdown, not rollback of command side effects.
+The persistent manifest includes host/runtime, exact identity, lifecycle
+class, owner-review retention trigger and safe cleanup conditions. No secrets
 in the owner/source/purpose fields. The caller must not detach workers,
 launch services or leave authoritative outputs in this directory. This is
 cooperative scratch lifecycle management, not a sandbox for hostile commands.

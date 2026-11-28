@@ -141,3 +141,93 @@ class ManagedScratchTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         scratch = self.root / ".cache" / "theseus-managed-scratch"
         self.assertEqual(list(scratch.iterdir()), [])
+
+    def test_retained_manifest_has_standalone_lifecycle(self):
+        result = self.invoke("raise SystemExit(7)")
+        r = json.loads(result.stderr.splitlines()[-1])
+        manifest = json.loads((Path(r["path"]) / ".theseus-scratch.json").read_text())
+        for field in ("host", "runtime", "class", "retention", "cleanup", "evidence"):
+            self.assertTrue(manifest[field], field)
+        self.assertEqual(manifest["class"], "PENDING_CLEANUP")
+
+    def test_termination_before_spawn_and_during_spawn_never_executes(self):
+        import contextlib
+        import importlib.util
+        import io
+        import signal
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location("managed_scratch", SCRIPT)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        original_popen = subprocess.Popen
+        original_signal = signal.signal
+        for phase in ("before", "during"):
+            with self.subTest(phase=phase):
+                marker = self.root / ("ran-" + phase)
+                argv = [str(SCRIPT), "--owner", "example/repo#14", "--source", "fixture",
+                        "--purpose", "test", "--", sys.executable, "-c",
+                        "from pathlib import Path; Path(" + repr(str(marker)) + ").touch()"]
+                def register(sig, handler):
+                    result = original_signal(sig, handler)
+                    if phase == "before" and sig == signal.SIGQUIT and callable(handler):
+                        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+                    return result
+                def spawn(*args, **kwargs):
+                    child = original_popen(*args, **kwargs)
+                    if phase == "during":
+                        # Let a nongated child execute before reporting the
+                        # termination to the wrapper, without racing the OS.
+                        try:
+                            child.wait(timeout=.15)
+                        except subprocess.TimeoutExpired:
+                            pass
+                        signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+                    return child
+                err = io.StringIO()
+                with patch.object(m.Path, "home", return_value=self.root), patch.object(m.sys, "argv", argv), patch.object(m.signal, "signal", side_effect=register), patch.object(m.subprocess, "Popen", side_effect=spawn) as popen, contextlib.redirect_stderr(err):
+                    self.assertEqual(m.main(), 128 + signal.SIGTERM)
+                if phase == "before":
+                    popen.assert_not_called()
+                self.assertFalse(marker.exists())
+
+    def test_job_control_stops_and_resumes_child_group(self):
+        import signal
+        import time
+        marker = self.root / "job-ready"
+        code = ("import os,time; from pathlib import Path; p=Path(os.environ['HOME'],'job-ready'); "
+                "p.write_text(str(os.getpid())); time.sleep(30)")
+        with subprocess.Popen([sys.executable, str(SCRIPT), "--owner", "example/repo#14",
+                               "--source", "fixture", "--purpose", "job control", "--",
+                               sys.executable, "-c", code], env={**os.environ, "HOME": str(self.root)},
+                              stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                              start_new_session=True) as proc:
+            child = None
+            def state(pid):
+                return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+            def wait_for(predicate):
+                end = time.monotonic() + 2
+                while time.monotonic() < end:
+                    if predicate():
+                        return True
+                    time.sleep(.02)
+                return False
+            try:
+                self.assertTrue(wait_for(lambda: marker.exists() and marker.stat().st_size > 0))
+                child = int(marker.read_text())
+                proc.send_signal(signal.SIGTSTP)
+                self.assertTrue(wait_for(lambda: state(proc.pid) == "T" and state(child) == "T"))
+                proc.send_signal(signal.SIGCONT)
+                self.assertTrue(wait_for(lambda: state(proc.pid) != "T" and state(child) != "T"))
+                proc.send_signal(signal.SIGTERM)
+                proc.communicate(timeout=4)
+                self.assertEqual(proc.returncode, 128 + signal.SIGTERM)
+            finally:
+                if proc.poll() is None:
+                    proc.send_signal(signal.SIGCONT)
+                    proc.kill()
+                    proc.wait()
+                if child is not None:
+                    try:
+                        os.kill(child, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass

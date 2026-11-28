@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -74,6 +75,28 @@ def has_mount(path):
     return False
 
 
+# The child cannot execute the requested command before its parent commits the
+# launch by writing one byte. EOF (including wrapper death) cancels the launch.
+_GATED_EXEC = """
+import os, signal, sys
+fd = int(sys.argv[1])
+try:
+    allowed = os.read(fd, 1)
+finally:
+    os.close(fd)
+if allowed != b'1':
+    sys.exit(1)
+for name in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+    if hasattr(signal, name):
+        signal.signal(getattr(signal, name), signal.SIG_DFL)
+try:
+    os.execvp(sys.argv[2], sys.argv[2:])
+except OSError as exc:
+    print('managed command exec failed: ' + type(exc).__name__, file=sys.stderr)
+    sys.exit(1)
+"""
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner", required=True)
@@ -97,7 +120,12 @@ def main():
     path = Path(tempfile.mkdtemp(prefix="run-", dir=root))
     identity = path.lstat()
     data = {"path": str(path), "owner": args.owner, "source": args.source,
-            "purpose": args.purpose}
+            "purpose": args.purpose, "host": socket.gethostname(), "runtime": sys.platform,
+            "class": "PENDING_CLEANUP",
+            "evidence": {"device": identity.st_dev, "inode": identity.st_ino,
+                         "root_device": info.st_dev, "root_inode": info.st_ino},
+            "retention": "Owner verifies required output/recovery and explicitly dispositions retained scratch.",
+            "cleanup": "Verify exact directory identity, no active consumers or mounts, recovery and authorized scope; remove only this directory and independently verify absence."}
     setup_failure = "start_receipt_failed"
     try:
         receipt(data, "PENDING_CLEANUP")
@@ -120,19 +148,57 @@ def main():
         interrupted = []
         process = None
 
-        def relay(signum, _frame):
-            interrupted.append(signum)
+        termination = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)
+
+        def send_group(signum):
             if process is not None:
                 try:
                     os.killpg(process.pid, signum)
                 except ProcessLookupError:
                     pass
 
-        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)}
+        def relay(signum, _frame):
+            interrupted.append(signum)
+            send_group(signum)
+            # Termination must also reach a previously suspended child.
+            send_group(signal.SIGCONT)
+
+        def suspend(_signum, _frame):
+            if not interrupted:
+                send_group(signal.SIGSTOP)
+                if not interrupted:
+                    os.kill(os.getpid(), signal.SIGSTOP)
+
+        def resume(_signum, _frame):
+            send_group(signal.SIGCONT)
+
+        handlers = {sig: relay for sig in termination}
+        handlers.update({signal.SIGTSTP: suspend, signal.SIGCONT: resume})
+        previous = {sig: signal.signal(sig, handler) for sig, handler in handlers.items()}
         try:
-            process = subprocess.Popen(command, cwd=path, start_new_session=True)
             if interrupted:
-                relay(interrupted[0], None)
+                receipt(data, "PENDING_CLEANUP", reason="interrupted_before_launch", signal=interrupted[0])
+                return 128 + interrupted[0]
+            read_fd, write_fd = os.pipe()
+            try:
+                process = subprocess.Popen(
+                    [sys.executable, "-I", "-S", "-c", _GATED_EXEC, str(read_fd), *command],
+                    cwd=path, start_new_session=True, pass_fds=(read_fd,))
+                # The launch decision is made with termination delivery masked.
+                # A signal already recorded or pending cancels authorization.
+                # Signals after this decision are ordinary running-child termination.
+                mask = signal.pthread_sigmask(signal.SIG_BLOCK, termination)
+                try:
+                    if not interrupted and not signal.sigpending().intersection(termination):
+                        os.write(write_fd, b"1")
+                finally:
+                    signal.pthread_sigmask(signal.SIG_SETMASK, mask)
+            finally:
+                os.close(read_fd)
+                os.close(write_fd)
+            if interrupted:
+                send_group(interrupted[0])
+                send_group(signal.SIGCONT)
             while not interrupted:
                 try:
                     process.wait(timeout=0.2)
