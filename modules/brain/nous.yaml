@@ -1,0 +1,8 @@
+# Non-secret profile: exe.dev's attached integration injects the actual credential.
+base_url: https://nous.int.exe.xyz/v1
+api_key: synthetic-placeholder
+default_model: upstage/solar-mini4:free
+timeout_seconds: 60
+max_input_bytes: 65536
+retry_max: 0
+aliases: {}
