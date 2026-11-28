@@ -28,6 +28,20 @@ def same_directory(path, original):
             (current.st_dev, current.st_ino) == (original.st_dev, original.st_ino))
 
 
+def retained_location(root, root_identity, original):
+    # Inspect direct children of the owned root only; never follow a symlink
+    # or guess where a command moved evidence outside the managed boundary.
+    if not same_directory(root, root_identity):
+        return None
+    try:
+        for candidate in root.iterdir():
+            if same_directory(candidate, original):
+                return str(candidate)
+    except OSError:
+        pass
+    return None
+
+
 def group_quiet(pid):
     try:
         os.killpg(pid, 0)
@@ -84,8 +98,10 @@ def main():
     identity = path.lstat()
     data = {"path": str(path), "owner": args.owner, "source": args.source,
             "purpose": args.purpose}
-    receipt(data, "PENDING_CLEANUP")
+    setup_failure = "start_receipt_failed"
     try:
+        receipt(data, "PENDING_CLEANUP")
+        setup_failure = "manifest_write_failed"
         (path / ".theseus-scratch.json").write_text(json.dumps(data, sort_keys=True) + "\n")
     except OSError:
         try:
@@ -93,8 +109,12 @@ def main():
                 shutil.rmtree(path)
         except OSError:
             pass
-        receipt(data, "PENDING_CLEANUP" if os.path.lexists(path) else "REMOVED",
-                reason="manifest_write_failed")
+        try:
+            receipt(data, "PENDING_CLEANUP" if os.path.lexists(path) else "REMOVED",
+                    reason=setup_failure)
+        except OSError:
+            # The reporting sink itself may be unavailable; do not launch.
+            pass
         return 1
     try:
         interrupted = []
@@ -108,7 +128,7 @@ def main():
                 except ProcessLookupError:
                     pass
 
-        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)}
         try:
             process = subprocess.Popen(command, cwd=path, start_new_session=True)
             if interrupted:
@@ -144,7 +164,9 @@ def main():
             receipt(data, "PENDING_CLEANUP", reason="process_group_active")
             return 1
         if not same_directory(root, info) or not same_directory(path, identity) or has_mount(path):
-            receipt(data, "PENDING_CLEANUP", reason="directory_identity_or_mount_changed")
+            receipt(data, "PENDING_CLEANUP", reason="directory_identity_or_mount_changed",
+                    retained_path=retained_location(root, info, identity),
+                    retained_device=identity.st_dev, retained_inode=identity.st_ino)
             return 1
         if not shutil.rmtree.avoids_symlink_attacks:
             receipt(data, "PENDING_CLEANUP", reason="safe_rmtree_unavailable")

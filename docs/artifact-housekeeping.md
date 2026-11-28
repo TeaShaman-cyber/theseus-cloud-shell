@@ -65,7 +65,13 @@ The command starts in a private newly allocated directory under
 after confirming that the foreground process group is quiet and the directory
 identity and mount boundary are unchanged. Failure retains files and prints
 a `PENDING_CLEANUP` receipt with the owner and recovery source. A start receipt
-is emitted before execution, so an interrupted run is recoverable. No secrets
+is emitted before execution, so an interrupted run is recoverable. If the
+start receipt cannot be emitted, the command is not launched and the new
+directory is removed when its identity and boundaries are still verified.
+For renamed scratch, the receipt records the retained device/inode and the
+matching direct child of the private root when observable; otherwise its
+location remains unknown. SIGINT, SIGTERM, SIGHUP and SIGQUIT are relayed to
+the managed foreground process group. No secrets
 in the owner/source/purpose fields. The caller must not detach workers,
 launch services or leave authoritative outputs in this directory. This is
 cooperative scratch lifecycle management, not a sandbox for hostile commands.

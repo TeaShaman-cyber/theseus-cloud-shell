@@ -59,18 +59,21 @@ class ManagedScratchTests(unittest.TestCase):
         receipt = json.loads(result.stderr.splitlines()[-1])
         self.assertEqual(receipt["status"], "PENDING_CLEANUP")
         self.assertEqual((Path(receipt["path"])/"new").read_text(), "keep")
+        retained = Path(receipt["retained_path"])
+        self.assertEqual(retained, Path(receipt["path"]).with_name(Path(receipt["path"]).name + "-old"))
+        self.assertTrue((retained / ".theseus-scratch.json").is_file())
 
     def test_sigterm_and_sigint_reach_child_and_retain_scratch(self):
         import signal
         import time
 
-        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP, signal.SIGQUIT):
             with self.subTest(signal=sig):
                 marker = self.root / "ready"
                 marker.unlink(missing_ok=True)
                 code = ("import os,signal,time; from pathlib import Path; "
                         "signal.signal(signal.SIGTERM,lambda *a:exit(23)); "
-                        "signal.signal(signal.SIGINT,lambda *a:exit(23)); signal.signal(signal.SIGHUP,lambda *a:exit(23)); "
+                        "signal.signal(signal.SIGINT,lambda *a:exit(23)); signal.signal(signal.SIGHUP,lambda *a:exit(23)); signal.signal(signal.SIGQUIT,lambda *a:exit(23)); "
                         "Path(os.environ['HOME'],'ready.tmp').write_text(str(os.getpid())); Path(os.environ['HOME'],'ready.tmp').rename(Path(os.environ['HOME'],'ready')); "
                         "time.sleep(30)")
                 env = {**os.environ, "HOME": str(self.root)}
@@ -128,3 +131,13 @@ class ManagedScratchTests(unittest.TestCase):
         r=json.loads(err.getvalue().splitlines()[-1])
         self.assertEqual(r["owner"],"example/repo#14")
         self.assertFalse(Path(r["path"]).exists())
+
+    def test_unwritable_start_receipt_does_not_leave_unclassified_scratch(self):
+        with open("/dev/full", "w") as sink:
+            result = subprocess.run([sys.executable, str(SCRIPT), "--owner", "example/repo#14",
+                                     "--source", "fixture", "--purpose", "test", "--",
+                                     "true"], env={**os.environ, "HOME": str(self.root)},
+                                    stdout=subprocess.DEVNULL, stderr=sink, timeout=5)
+        self.assertNotEqual(result.returncode, 0)
+        scratch = self.root / ".cache" / "theseus-managed-scratch"
+        self.assertEqual(list(scratch.iterdir()), [])
