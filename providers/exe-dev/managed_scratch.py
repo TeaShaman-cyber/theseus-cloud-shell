@@ -35,7 +35,21 @@ def group_quiet(pid):
         return True
     except PermissionError:
         return False
-    return False
+    # Linux can retain orphaned zombie group members indefinitely. They
+    # cannot access files; unreadable process state is not proof of quiescence.
+    try:
+        for proc in Path("/proc").iterdir():
+            if not proc.name.isdecimal():
+                continue
+            try:
+                fields = proc.joinpath("stat").read_text().rsplit(")", 1)[1].split()
+            except FileNotFoundError:
+                continue
+            if int(fields[2]) == pid and fields[0] not in ("Z", "X"):
+                return False
+    except (OSError, ValueError, IndexError):
+        return False
+    return True
 
 
 def has_mount(path):
@@ -70,8 +84,18 @@ def main():
     identity = path.lstat()
     data = {"path": str(path), "owner": args.owner, "source": args.source,
             "purpose": args.purpose}
-    (path / ".theseus-scratch.json").write_text(json.dumps(data, sort_keys=True) + "\n")
     receipt(data, "PENDING_CLEANUP")
+    try:
+        (path / ".theseus-scratch.json").write_text(json.dumps(data, sort_keys=True) + "\n")
+    except OSError:
+        try:
+            if same_directory(root, info) and same_directory(path, identity) and not has_mount(path) and shutil.rmtree.avoids_symlink_attacks:
+                shutil.rmtree(path)
+        except OSError:
+            pass
+        receipt(data, "PENDING_CLEANUP" if os.path.lexists(path) else "REMOVED",
+                reason="manifest_write_failed")
+        return 1
     try:
         interrupted = []
         process = None
@@ -84,7 +108,7 @@ def main():
                 except ProcessLookupError:
                     pass
 
-        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM)}
+        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
         try:
             process = subprocess.Popen(command, cwd=path, start_new_session=True)
             if interrupted:

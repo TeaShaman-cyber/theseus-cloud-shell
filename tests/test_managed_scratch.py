@@ -64,14 +64,14 @@ class ManagedScratchTests(unittest.TestCase):
         import signal
         import time
 
-        for sig in (signal.SIGTERM, signal.SIGINT):
+        for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
             with self.subTest(signal=sig):
                 marker = self.root / "ready"
                 marker.unlink(missing_ok=True)
                 code = ("import os,signal,time; from pathlib import Path; "
                         "signal.signal(signal.SIGTERM,lambda *a:exit(23)); "
-                        "signal.signal(signal.SIGINT,lambda *a:exit(23)); "
-                        "Path(os.environ['HOME'],'ready').write_text(str(os.getpid())); "
+                        "signal.signal(signal.SIGINT,lambda *a:exit(23)); signal.signal(signal.SIGHUP,lambda *a:exit(23)); "
+                        "Path(os.environ['HOME'],'ready.tmp').write_text(str(os.getpid())); Path(os.environ['HOME'],'ready.tmp').rename(Path(os.environ['HOME'],'ready')); "
                         "time.sleep(30)")
                 env = {**os.environ, "HOME": str(self.root)}
                 with subprocess.Popen([sys.executable, str(SCRIPT), "--owner", "example/repo#14",
@@ -101,3 +101,30 @@ class ManagedScratchTests(unittest.TestCase):
                         if process.poll() is None:
                             process.kill()
                             process.wait()
+
+    def test_group_with_only_zombies_is_quiet(self):
+        import importlib.util
+        from unittest.mock import patch, Mock
+        spec = importlib.util.spec_from_file_location("managed_scratch", SCRIPT)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        proc = Mock()
+        proc.name = "123"
+        proc.joinpath.return_value.read_text.return_value = "123 (fixture) Z 1 456 456 0"
+        with patch.object(m.os, "killpg"), patch.object(m.Path, "iterdir", return_value=iter([proc])):
+            self.assertTrue(m.group_quiet(456))
+
+    def test_manifest_failure_keeps_classified_receipt(self):
+        import importlib.util
+        import contextlib
+        import io
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location("managed_scratch", SCRIPT)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        err = io.StringIO()
+        with patch.object(m.Path, "home", return_value=self.root), patch.object(m.Path, "write_text", side_effect=OSError("disk full")), patch.object(m.sys, "argv", [str(SCRIPT),"--owner","example/repo#14","--source","fixture","--purpose","test","--","true"]), contextlib.redirect_stderr(err):
+            self.assertNotEqual(m.main(), 0)
+        r=json.loads(err.getvalue().splitlines()[-1])
+        self.assertEqual(r["owner"],"example/repo#14")
+        self.assertFalse(Path(r["path"]).exists())
