@@ -1,0 +1,13 @@
+{
+  "content": "A single document ID like `doc_123` with locales `en` and `fr` collides: saving an English translation to `doc_123` and a French translation to `doc_123` overwrites the same cache entry, so the French client retrieves the English text. The invariant that must hold is that the cache key is unique per document and locale (e.g., `{document_id}:{locale}`), ensuring each translation can be stored and retrieved independently. A regression test should assert that writing a translation with key `doc_123:en` and another with `doc_123:fr` leaves both values retrievable unchanged, and that updating the French variant does not alter the English value.",
+  "model": "upstage/solar-mini4:free",
+  "requested_model": "upstage/solar-mini4:free",
+  "usage": {
+    "prompt_tokens": 90,
+    "completion_tokens": 153,
+    "total_tokens": 243
+  },
+  "latency_ms": 4784,
+  "finish_reason": "stop",
+  "error": null
+}

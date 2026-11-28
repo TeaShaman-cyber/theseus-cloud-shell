@@ -1,0 +1,92 @@
+[
+  {
+    "case": [
+      "eof"
+    ],
+    "exit": 0,
+    "elapsed_ms": 71,
+    "requests": [
+      {
+        "mode": "eof",
+        "path": "/v1/chat/completions",
+        "model": "test-eof",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-eof\",\"model\":\"test-eof\",\"requested_model\":\"test-eof\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":7,\"finish_reason\":\"\",\"error\":null}\n",
+    "stderr": "brain: 0.0s | model test-eof\n"
+  },
+  {
+    "case": [
+      "done_without_finish"
+    ],
+    "exit": 0,
+    "elapsed_ms": 7,
+    "requests": [
+      {
+        "mode": "done_without_finish",
+        "path": "/v1/chat/completions",
+        "model": "test-done_without_finish",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-done_without_finish\",\"model\":\"test-done_without_finish\",\"requested_model\":\"test-done_without_finish\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":1,\"finish_reason\":\"\",\"error\":null}\n",
+    "stderr": "brain: 0.0s | model test-done_without_finish\n"
+  },
+  {
+    "case": [
+      "error_after_content"
+    ],
+    "exit": 5,
+    "elapsed_ms": 10,
+    "requests": [
+      {
+        "mode": "error_after_content",
+        "path": "/v1/chat/completions",
+        "model": "test-error_after_content",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"\",\"requested_model\":\"test-error_after_content\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":5,\"finish_reason\":\"\",\"error\":{\"code\":5,\"type\":\"upstream\",\"message\":\"gateway returned HTTP 502: synthetic stream error (type=server_error)\",\"retryable\":true,\"upstream_status\":502,\"attempted_models\":[\"test-error_after_content\"]}}\n",
+    "stderr": "brain: gateway returned HTTP 502: synthetic stream error (type=server_error)\n"
+  },
+  {
+    "case": [
+      "missing_usage"
+    ],
+    "exit": 0,
+    "elapsed_ms": 6,
+    "requests": [
+      {
+        "mode": "missing_usage",
+        "path": "/v1/chat/completions",
+        "model": "test-missing_usage",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-missing_usage\",\"model\":\"test-missing_usage\",\"requested_model\":\"test-missing_usage\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":1,\"finish_reason\":\"stop\",\"error\":null}\n",
+    "stderr": "brain: 0.0s | model test-missing_usage\n"
+  },
+  {
+    "case": [
+      "stop_without_done"
+    ],
+    "exit": 0,
+    "elapsed_ms": 6,
+    "requests": [
+      {
+        "mode": "stop_without_done",
+        "path": "/v1/chat/completions",
+        "model": "test-stop_without_done",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-stop_without_done\",\"model\":\"test-stop_without_done\",\"requested_model\":\"test-stop_without_done\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":1,\"finish_reason\":\"stop\",\"error\":null}\n",
+    "stderr": "brain: 0.0s | model test-stop_without_done\n"
+  }
+]

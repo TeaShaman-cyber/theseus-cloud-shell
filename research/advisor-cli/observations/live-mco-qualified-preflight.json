@@ -1,0 +1,17 @@
+{
+  "ok": false,
+  "error": {
+    "category": "input",
+    "subtype": "input_error",
+    "message": "unknown model 'advisor/upstage/solar-mini4:free' for provider 'pi'",
+    "hint": "Correct the input and retry the command.",
+    "provider": null,
+    "retryable": false,
+    "exit_code": 2
+  },
+  "stage": "run",
+  "status": "failed",
+  "exit_code": 2,
+  "outputs": [],
+  "artifact_root": null
+}

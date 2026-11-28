@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+import sys,os,time,json
+from pathlib import Path
+if '--version' in sys.argv: print('2.1.59'); sys.exit(0)
+if sys.argv[1:]==['auth','status']: print('authenticated fixture'); sys.exit(0)
+assert '--permission-mode' in sys.argv and sys.argv[sys.argv.index('--permission-mode')+1]=='plan'
+Path(os.environ['WITNESS']).open('a').write(json.dumps({'provider':'claude','pid':os.getpid()})+'\n')
+print('Fixture review: equality rejects a valid withdrawal.',flush=True)

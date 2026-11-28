@@ -1,0 +1,156 @@
+[
+  {
+    "case": [
+      "ok"
+    ],
+    "exit": 0,
+    "elapsed_ms": 1400,
+    "requests": [
+      {
+        "mode": "ok",
+        "path": "/ok/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "synthetic-ok\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "rate"
+    ],
+    "exit": 1,
+    "elapsed_ms": 1251,
+    "requests": [
+      {
+        "mode": "rate",
+        "path": "/rate/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": false
+      },
+      {
+        "mode": "rate",
+        "path": "/rate/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": false
+      },
+      {
+        "mode": "rate",
+        "path": "/rate/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Error code: 429 - synthetic rate limit\n"
+  },
+  {
+    "case": [
+      "server"
+    ],
+    "exit": 1,
+    "elapsed_ms": 2338,
+    "requests": [
+      {
+        "mode": "server",
+        "path": "/server/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": false
+      },
+      {
+        "mode": "server",
+        "path": "/server/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": false
+      },
+      {
+        "mode": "server",
+        "path": "/server/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Error code: 500 - synthetic server error\n"
+  },
+  {
+    "case": [
+      "bad"
+    ],
+    "exit": 1,
+    "elapsed_ms": 1384,
+    "requests": [
+      {
+        "mode": "bad",
+        "path": "/bad/v1/chat/completions",
+        "model": "test-bad",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "",
+    "stderr": "Error: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\n"
+  },
+  {
+    "case": [
+      "empty"
+    ],
+    "exit": 0,
+    "elapsed_ms": 1121,
+    "requests": [
+      {
+        "mode": "empty",
+        "path": "/empty/v1/chat/completions",
+        "model": "test-empty",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "length"
+    ],
+    "exit": 0,
+    "elapsed_ms": 1081,
+    "requests": [
+      {
+        "mode": "length",
+        "path": "/length/v1/chat/completions",
+        "model": "test-length",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "synthetic-length\n",
+    "stderr": ""
+  },
+  {
+    "case": [
+      "slow"
+    ],
+    "exit": 0,
+    "elapsed_ms": 2977,
+    "requests": [
+      {
+        "mode": "slow",
+        "path": "/slow/v1/chat/completions",
+        "model": "test-slow",
+        "max_tokens": 64,
+        "stream": false
+      }
+    ],
+    "stdout": "synthetic-slow\n",
+    "stderr": ""
+  }
+]

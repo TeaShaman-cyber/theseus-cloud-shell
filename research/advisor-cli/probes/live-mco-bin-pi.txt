@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+lab=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+h=$(mktemp -d "$lab/pi-home.XXXXXX")
+trap 'rm -rf -- "$h"' EXIT
+mkdir -p "$h/.pi/agent"
+cp "$lab"/config/*.json "$h/.pi/agent/"
+# No host home, credentials, workspace or ambient MCP in the child.
+bwrap --unshare-user --unshare-pid --die-with-parent --ro-bind /usr /usr --ro-bind /bin /bin --ro-bind /lib /lib --ro-bind /lib64 /lib64 --proc /proc --dev /dev --tmpfs /tmp --dir /home --bind "$h" /home/review --ro-bind "$lab/repo" /work --ro-bind /home/exedev/.local/pi /opt/pi --chdir /work --clearenv --setenv PATH /usr/bin:/bin --setenv HOME /home/review --setenv PI_CODING_AGENT_DIR /home/review/.pi/agent --setenv PI_OFFLINE 1 --setenv PI_TELEMETRY 0 --setenv LANG C.UTF-8 -- /opt/pi/pi --no-mcp "$@"

@@ -1,0 +1,180 @@
+[
+  {
+    "case": [
+      "ok"
+    ],
+    "exit": 0,
+    "elapsed_ms": 84,
+    "requests": [
+      {
+        "mode": "ok",
+        "path": "/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-ok\",\"model\":\"test-ok\",\"requested_model\":\"test-ok\",\"max_output_tokens\":64,\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"stop\",\"error\":null}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: 0.0s | model test-ok\n"
+  },
+  {
+    "case": [
+      "ok",
+      "second"
+    ],
+    "exit": 0,
+    "elapsed_ms": 10,
+    "requests": [
+      {
+        "mode": "second",
+        "path": "/v1/chat/completions",
+        "model": "test-second",
+        "max_tokens": 64,
+        "stream": true
+      },
+      {
+        "mode": "ok",
+        "path": "/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"responses\":[{\"model\":\"test-ok\",\"ok\":true,\"content\":\"synthetic-ok\",\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"stop\"},{\"model\":\"test-second\",\"ok\":true,\"content\":\"synthetic-second\",\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"stop\"}],\"error\":null}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: compare 0.0s | 2/2 ok\n"
+  },
+  {
+    "case": [
+      "rate"
+    ],
+    "exit": 3,
+    "elapsed_ms": 5,
+    "requests": [
+      {
+        "mode": "rate",
+        "path": "/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"\",\"requested_model\":\"test-rate\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":0,\"finish_reason\":\"\",\"error\":{\"code\":3,\"type\":\"rate_limited\",\"message\":\"gateway returned HTTP 429: {\\\"error\\\": {\\\"message\\\": \\\"synthetic rate limit\\\", \\\"type\\\": \\\"rate_limit_error\\\"}}\",\"retryable\":true,\"upstream_status\":429,\"attempted_models\":[\"test-rate\"]}}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: gateway returned HTTP 429: {\"error\": {\"message\": \"synthetic rate limit\", \"type\": \"rate_limit_error\"}}\n"
+  },
+  {
+    "case": [
+      "server"
+    ],
+    "exit": 5,
+    "elapsed_ms": 6,
+    "requests": [
+      {
+        "mode": "server",
+        "path": "/v1/chat/completions",
+        "model": "test-server",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"\",\"requested_model\":\"test-server\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":0,\"finish_reason\":\"\",\"error\":{\"code\":5,\"type\":\"upstream\",\"message\":\"gateway returned HTTP 500: {\\\"error\\\": {\\\"message\\\": \\\"synthetic server error\\\"}}\",\"retryable\":true,\"upstream_status\":500,\"attempted_models\":[\"test-server\"]}}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: gateway returned HTTP 500: {\"error\": {\"message\": \"synthetic server error\"}}\n"
+  },
+  {
+    "case": [
+      "bad"
+    ],
+    "exit": 5,
+    "elapsed_ms": 4,
+    "requests": [
+      {
+        "mode": "bad",
+        "path": "/v1/chat/completions",
+        "model": "test-bad",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"\",\"requested_model\":\"test-bad\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":1,\"finish_reason\":\"\",\"error\":{\"code\":5,\"type\":\"network\",\"message\":\"stream produced no content (gateway misbehaving)（response snippet: {bad）\",\"retryable\":true,\"attempted_models\":[\"test-bad\"]}}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: stream produced no content (gateway misbehaving)（response snippet: {bad）\n"
+  },
+  {
+    "case": [
+      "empty"
+    ],
+    "exit": 0,
+    "elapsed_ms": 4,
+    "requests": [
+      {
+        "mode": "empty",
+        "path": "/v1/chat/completions",
+        "model": "test-empty",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"test-empty\",\"requested_model\":\"test-empty\",\"max_output_tokens\":64,\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"stop\",\"error\":null}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: warning: model returned empty content（finish_reason=stop）\nbrain: 0.0s | model test-empty\n"
+  },
+  {
+    "case": [
+      "length"
+    ],
+    "exit": 0,
+    "elapsed_ms": 5,
+    "requests": [
+      {
+        "mode": "length",
+        "path": "/v1/chat/completions",
+        "model": "test-length",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"synthetic-length\",\"model\":\"test-length\",\"requested_model\":\"test-length\",\"max_output_tokens\":64,\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"length\",\"error\":null}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: 0.0s | model test-length\n"
+  },
+  {
+    "case": [
+      "slow"
+    ],
+    "exit": 4,
+    "elapsed_ms": 1004,
+    "requests": [
+      {
+        "mode": "slow",
+        "path": "/v1/chat/completions",
+        "model": "test-slow",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"content\":\"\",\"model\":\"\",\"requested_model\":\"test-slow\",\"max_output_tokens\":64,\"usage\":null,\"latency_ms\":1000,\"finish_reason\":\"\",\"error\":{\"code\":4,\"type\":\"timeout\",\"message\":\"request timeout: Post \\\"http://127.0.0.1:40157/v1/chat/completions\\\": context deadline exceeded\",\"retryable\":true,\"attempted_models\":[\"test-slow\"]}}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: request timeout: Post \"http://127.0.0.1:40157/v1/chat/completions\": context deadline exceeded\n"
+  },
+  {
+    "case": [
+      "ok",
+      "rate"
+    ],
+    "exit": 0,
+    "elapsed_ms": 4,
+    "requests": [
+      {
+        "mode": "rate",
+        "path": "/v1/chat/completions",
+        "model": "test-rate",
+        "max_tokens": 64,
+        "stream": true
+      },
+      {
+        "mode": "ok",
+        "path": "/v1/chat/completions",
+        "model": "test-ok",
+        "max_tokens": 64,
+        "stream": true
+      }
+    ],
+    "stdout": "{\"responses\":[{\"model\":\"test-ok\",\"ok\":true,\"content\":\"synthetic-ok\",\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3,\"total_tokens\":8},\"latency_ms\":1,\"finish_reason\":\"stop\"},{\"model\":\"test-rate\",\"ok\":false,\"usage\":null,\"latency_ms\":1,\"error\":{\"code\":3,\"type\":\"rate_limited\",\"message\":\"gateway returned HTTP 429: {\\\"error\\\": {\\\"message\\\": \\\"synthetic rate limit\\\", \\\"type\\\": \\\"rate_limit_error\\\"}}\",\"retryable\":true,\"upstream_status\":429}}],\"error\":null}\n",
+    "stderr": "brain: warning: config.yaml permission is 0644 (should be 0600); fix: chmod 600 /tmp/tmptrvatjeq/config.yaml\nbrain: compare: test-rate leg failed（code 3）: gateway returned HTTP 429: {\"error\": {\"message\": \"synthetic rate limit\", \"type\": \"rate_limit_error\"}}\nbrain: compare 0.0s | 1/2 ok\n"
+  }
+]

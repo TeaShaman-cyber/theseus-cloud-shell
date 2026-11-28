@@ -1,0 +1,18 @@
+import json,sys,time
+from llm.default_plugins.openai_models import Chat
+class BoundedChat(Chat):
+ def get_client(self,key,*,async_=False):
+  return super().get_client(key,async_=async_).with_options(max_retries=0,timeout=60.0)
+m=BoundedChat(model_id="upstage/solar-mini4:free",api_base="https://nous.int.exe.xyz/v1")
+m.needs_key=None
+start=time.monotonic()
+try:
+ r=m.prompt("Synthetic cache review: a service caches translated text by document ID but omits target locale from the key. In at most three sentences give one concrete counterexample, the invariant, and a regression test.",stream=False,options={"max_tokens":2048})
+ text=r.text()
+ raw=r.response_json
+ finish=raw["choices"][0]["finish_reason"]
+ print(json.dumps({"text":text,"finish":finish,"usage":raw.get("usage"),"model":raw.get("model"),"elapsed_ms":round((time.monotonic()-start)*1000)}))
+ sys.exit(0 if text.strip() and finish=="stop" else 2)
+except Exception as e:
+ print(json.dumps({"error":type(e).__name__,"status":getattr(e,"status_code",None),"elapsed_ms":round((time.monotonic()-start)*1000)}))
+ sys.exit(1)

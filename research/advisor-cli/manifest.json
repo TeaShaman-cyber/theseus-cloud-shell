@@ -1,0 +1,166 @@
+{
+  "schema": "theseus.advisor-cli-evidence.v1",
+  "issue": 42,
+  "files": {
+    "observations/mpt-release.json": {
+      "sha256": "b9925032595cc89ca6b4ad8c7c16e02193fadb7f746dfa8d61bb72e8194c6e11",
+      "source_sha256": "1f74bef686b2ad26b61d10283ff7159699955272cc36a148e0ee36c7a6f101f1",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/mpt-head.json": {
+      "sha256": "ebf0191b8fc9f856efc133bb059b6b5b07e037baf41e11cb20ae1165f1ae9111",
+      "source_sha256": "c413533ba7546584124d2d8552abf0cfb88e86e2e9fecfc5f5f9cfcca56c025c",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/llm.json": {
+      "sha256": "cd2c6bded5a2a103ef4b66bcd7fdd99d464a1e2e390676bc09e0be12616ce494",
+      "source_sha256": "29b663da67940fde35eac9eb97ade5d5ef4d97f13a8513bded58c7047cd44d2b",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/llm-bounded.json": {
+      "sha256": "750c7a6b8d10f92bd1be710f814e136ff2eb8c625d8619c9dfe0ea4238693b0b",
+      "source_sha256": "71fb62ff23dfdc085bc3e4861de9ce318eb13c715d3b5615c00f6041b7a761fa",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/brain.json": {
+      "sha256": "2ca90d5de26f9674e6d62c262c31ad9b8252140b574cc70f315857dd3ae9cbdb",
+      "source_sha256": "140573bff944a3f81547043df4157d27f6e186494a78d1e212900af14e125319",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/brain-stream.json": {
+      "sha256": "fa88d3436361477be18a6af391c70b10175bd06879c5fa3c7e814874ec4c4a5f",
+      "source_sha256": "f4f310b937e5007492903a0c2adfc30c6e18434e9bd01099367f883df0ebb217",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/aichat.json": {
+      "sha256": "641b4ed5eb11a528c26f347d446a7620c04e647d2960b710b1e0a027058d38b5",
+      "source_sha256": "34ae01dc649de0182b2dccf35b40ba6535c47f8840542f664f8709d3e7223230",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/mco-process.json": {
+      "sha256": "395ca9b5a9eacdad695f3109268852c76533c3c2c4834fca33a24d8d9eb615c1",
+      "source_sha256": "fa4bcad57e9453013892adae0990ee06eebbdd42554409c6ffe068f90b766e9f",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/mco-dry-run.json": {
+      "sha256": "1dc912bd2dffd32dd095c589eb792330201c4d42233f62052fa9b4925dfc2553",
+      "source_sha256": "edaf5724096090836e775d9a4c0cf08877418d46657cb04438ab10e06fcafc2a",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/live-brain.json": {
+      "sha256": "ebbc5c48be8266bbd54aafb7b29385a54b9e228653a39112d2c2993bacbf0d03",
+      "source_sha256": "ec64cafb59e6215d857a69ba44f8cd0da980051cfb5b0e115fbfe87df392be7f",
+      "transform": "selected final-answer and transport fields"
+    },
+    "observations/live-brain-compare.json": {
+      "sha256": "cd64cba2085a9b3d36e0adf03de5c4a0728694c65ea08a10e91ad487f2bf9953",
+      "source_sha256": "df1142c9313eaf589bfe4ba93a67a132e8947deb29e5436e18e25d4dde3b9875",
+      "transform": "selected final-answer and transport fields"
+    },
+    "observations/live-llm.json": {
+      "sha256": "7e740c8fe3ddb46527979a4503fde261477360dca84dc03434efb2f625ef3d28",
+      "source_sha256": "1e75015e610626fa4b1e73f40f468248f2867a50e5b0fc88066a413acc41ba24",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "observations/live-mco.json": {
+      "sha256": "a69adcda2481c3f49db3e3354398a1b50a4454a9d9e7e2620a7832a6b2bc9489",
+      "source_sha256": "4242bec069b6506363eb90b0284e9291845d9aca7a80053f29e8d8925a19b646",
+      "transform": "selected final-answer and transport fields"
+    },
+    "observations/live-mco-wire.jsonl": {
+      "sha256": "a3249fb61c1bbf56c1c29182cd68e4f2e20e06a9af58cbe983b5b3d0f989800d",
+      "source_sha256": "a3249fb61c1bbf56c1c29182cd68e4f2e20e06a9af58cbe983b5b3d0f989800d",
+      "transform": "none"
+    },
+    "observations/live-mco-qualified-preflight.json": {
+      "sha256": "1e4e3ea1815b53e9bbedb239474dfc8452ea3b67eeaf6009b840ddaa78da0d28",
+      "source_sha256": "58eb444a383ffadf82b98e25bacac89df1d03eb24c02e103e93eee522ace90fe",
+      "transform": "JSON reserialization; temporary lab path redacted"
+    },
+    "probes/probe-mpt.py": {
+      "sha256": "358d3618c4cff2d66982ce60f2f24677082873ccaf2d2e51ef6e61b93e616da8",
+      "source_sha256": "358d3618c4cff2d66982ce60f2f24677082873ccaf2d2e51ef6e61b93e616da8",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-mpt-head.py": {
+      "sha256": "c7a035bd1875350f5ffbb2ec134722544ac4738e3ac4a2bf484f7771a52703b4",
+      "source_sha256": "c7a035bd1875350f5ffbb2ec134722544ac4738e3ac4a2bf484f7771a52703b4",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-llm.py": {
+      "sha256": "8a91f6d94b7ebb6645c715f6d416ab8e2640e5bf5513836b9f69000f22992787",
+      "source_sha256": "8a91f6d94b7ebb6645c715f6d416ab8e2640e5bf5513836b9f69000f22992787",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-llm-bounded.py": {
+      "sha256": "9386ac12a19d98d8c7de6a0a6f1ede2cc6f26110b05b7b3baa145e6a30399567",
+      "source_sha256": "9386ac12a19d98d8c7de6a0a6f1ede2cc6f26110b05b7b3baa145e6a30399567",
+      "transform": "none; executed offline probe"
+    },
+    "probes/llm-bounded.py": {
+      "sha256": "fafe81008fb9591cf479680068c9d383504000a5f4886ae5adcc20008b0b507a",
+      "source_sha256": "fafe81008fb9591cf479680068c9d383504000a5f4886ae5adcc20008b0b507a",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-brain.py": {
+      "sha256": "67c175c48716662d621cac7f38260475a12f4594d1405b25c38aaa6b06bfee56",
+      "source_sha256": "67c175c48716662d621cac7f38260475a12f4594d1405b25c38aaa6b06bfee56",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-brain-stream.py": {
+      "sha256": "449000b2a1f40308a6a8c4210a08e045e6cc7e81c5e4cbcd7ded9347a1f4a678",
+      "source_sha256": "449000b2a1f40308a6a8c4210a08e045e6cc7e81c5e4cbcd7ded9347a1f4a678",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-aichat.py": {
+      "sha256": "54848213bdb008928251a9183e715005531ef06b8b41aaac14cdfb547086bd13",
+      "source_sha256": "54848213bdb008928251a9183e715005531ef06b8b41aaac14cdfb547086bd13",
+      "transform": "none; executed offline probe"
+    },
+    "probes/probe-mco.py": {
+      "sha256": "e9b64ccf4d5faf29a58934bec0e981ed8a11f0eae8637e8adde64d899faa53a8",
+      "source_sha256": "e9b64ccf4d5faf29a58934bec0e981ed8a11f0eae8637e8adde64d899faa53a8",
+      "transform": "none; executed offline probe"
+    },
+    "probes/mco-fake-bin/claude.txt": {
+      "sha256": "82d93aace1d6de27382f1294c0e02eaac0ccadc217d4f885f7d11f4524aa06d8",
+      "source_sha256": "82d93aace1d6de27382f1294c0e02eaac0ccadc217d4f885f7d11f4524aa06d8",
+      "transform": "none; executable fixture retained as text"
+    },
+    "probes/mco-fake-bin/codex.txt": {
+      "sha256": "0e3216b722c25e92fa4c1e545fab5e783d70d847f4a4499ad247bbaf37d3a108",
+      "source_sha256": "0e3216b722c25e92fa4c1e545fab5e783d70d847f4a4499ad247bbaf37d3a108",
+      "transform": "none; executable fixture retained as text"
+    },
+    "probes/account.py": {
+      "sha256": "29f2820670d378fc8773aa4b3a975b805fc50241c0105bf1edba0dcc58fb8da6",
+      "source_sha256": "29f2820670d378fc8773aa4b3a975b805fc50241c0105bf1edba0dcc58fb8da6",
+      "transform": "none; synthetic fixture"
+    },
+    "probes/live-mco-run-review.py.txt": {
+      "sha256": "821c7d4f9b435dff1eba16d8c31a5f71bb6aff02d0a37786b6834b154a5fa1b0",
+      "source_sha256": "821c7d4f9b435dff1eba16d8c31a5f71bb6aff02d0a37786b6834b154a5fa1b0",
+      "transform": "none; executed live experiment source, NOT an automatic runner"
+    },
+    "probes/live-mco-bin-pi.txt": {
+      "sha256": "015223865ebea7878906a11d4e8bf93526348744ae665143b2e59b79735c8cb2",
+      "source_sha256": "015223865ebea7878906a11d4e8bf93526348744ae665143b2e59b79735c8cb2",
+      "transform": "none; executed live experiment source, NOT an automatic runner"
+    },
+    "probes/live-llm-run.py.txt": {
+      "sha256": "bbae1b6ce8cfab85791911122145fb860d982c14e682f334b8c46e91676f4a31",
+      "source_sha256": "bbae1b6ce8cfab85791911122145fb860d982c14e682f334b8c46e91676f4a31",
+      "transform": "none; executed live experiment source, NOT an automatic runner"
+    },
+    "observations/live-aichat.json": {
+      "sha256": "610288c689469785f66ec3e5a68f32d3c1da35ce63a30d7a74ecb9f74abc6a48",
+      "source_sha256": "1b1e277c391a0bdec4e5ac66cf22758a3d31f1f53007c5df91c583bc9c861a3c",
+      "transform": "redacted summary of error; raw HTML/error omitted"
+    },
+    "observations/live-mpt.json": {
+      "sha256": "9686975698b57b3cfdd885a5afcca3ea678f476e9af4043ca1b6d37511031fb8",
+      "source_sha256": "61dcf8bde71ba34a137997f603a98c74dba72302d99262a593e027bbd3e8aa85",
+      "transform": "redacted summary of error; raw HTML/error omitted"
+    }
+  }
+}
