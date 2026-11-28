@@ -53,14 +53,17 @@ First prepare a *read-only* exact-path inventory for the Session Search recovery
 
 ## Managed disposable scratch (opt-in)
 
-For a **new, reproducible, foreground-only** experiment whose successful command
+For a **new, reproducible, non-interactive foreground-only** experiment whose successful command
 has already persisted and verified all required outputs outside scratch, use:
 
     python3 ~/work/theseus-cloud-shell/providers/exe-dev/managed_scratch.py \
       --owner owner/repo#123 --source exact-source-or-recovery-id \
       --purpose 'bounded disposable QA' -- /absolute/path/to/command
 
-The command starts in a private newly allocated directory under
+Invoke without a controlling terminal or TTY (for SSH, disable PTY allocation).
+This is a synchronous batch helper, not a terminal job-control shell;
+interactive commands, including commands needing /dev/tty, are out of scope.
+TTY invocation fails before scratch allocation. The command starts in a private newly allocated directory under
 `~/.cache/theseus-managed-scratch`. Success removes only that directory,
 after confirming that the foreground process group is quiet and the directory
 identity and mount boundary are unchanged. Failure retains files and prints
@@ -69,10 +72,11 @@ is emitted before execution, so an interrupted run is recoverable. If the
 start receipt cannot be emitted, the command is not launched and the new
 directory is removed when its identity and boundaries are still verified.
 For renamed scratch, the receipt records the retained device/inode and the
-matching direct child of the private root when observable; otherwise its
-location remains unknown. SIGINT, SIGTERM, SIGHUP and SIGQUIT are relayed to
-the managed foreground process group. Ctrl-Z suspends the group with the
-wrapper; SIGCONT resumes it. A gated child cannot execute the command until
+matching direct child of the private root when observable, and updates its
+manifest after identity and mount checks. Otherwise its location or manifest
+update remains explicitly unverified. SIGINT, SIGTERM, SIGHUP and SIGQUIT are relayed to
+the managed foreground process group. A programmatic SIGTSTP pauses the
+child group but leaves the wrapper responsive to termination; SIGCONT resumes it. A gated child cannot execute the command until
 the wrapper commits launch; termination already recorded or pending at that
 decision cancels execution. After launch authorization, termination is
 ordinary process-group shutdown, not rollback of command side effects.

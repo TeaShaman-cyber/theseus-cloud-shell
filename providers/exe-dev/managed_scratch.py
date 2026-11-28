@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Opt-in lifecycle for newly created, disposable foreground work."""
 import argparse
+import errno
 import json
 import os
 from pathlib import Path
@@ -41,6 +42,49 @@ def retained_location(root, root_identity, original):
     except OSError:
         pass
     return None
+
+
+def has_terminal():
+    if any(os.isatty(fd) for fd in (0, 1, 2)):
+        return True
+    try:
+        fd = os.open("/dev/tty", os.O_RDONLY | os.O_NOCTTY)
+    except OSError as exc:
+        if exc.errno in (errno.ENXIO, errno.ENODEV, errno.ENOENT):
+            return False
+        raise
+    os.close(fd)
+    return True
+
+
+def update_relocated_manifest(path, root, root_identity, original, data):
+    # Only update a verified direct child with no mounted descendants.
+    if path is None:
+        return False
+    target = Path(path)
+    if (target.parent != root or not same_directory(root, root_identity)
+            or not same_directory(target, original) or has_mount(target)):
+        return False
+    fd = os.open(target, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    temporary = ".theseus-scratch.relocated.tmp"
+    created = False
+    try:
+        st = os.fstat(fd)
+        if (st.st_dev, st.st_ino) != (original.st_dev, original.st_ino):
+            return False
+        handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=fd)
+        created = True
+        with os.fdopen(handle, "w") as out:
+            json.dump({**data, "path": path, "original_path": data["path"]}, out, sort_keys=True)
+            out.write("\n")
+        os.replace(temporary, ".theseus-scratch.json", src_dir_fd=fd, dst_dir_fd=fd)
+        created = False
+        return True
+    finally:
+        if created:
+            os.unlink(temporary, dir_fd=fd)
+        os.close(fd)
 
 
 def group_quiet(pid):
@@ -111,6 +155,12 @@ def main():
         parser.error("require owner/repo#issue and a foreground command")
     if not args.source.strip() or not args.purpose.strip():
         parser.error("source and purpose must be nonempty")
+    try:
+        terminal = has_terminal()
+    except OSError:
+        parser.error("cannot establish non-interactive execution")
+    if terminal:
+        parser.error("managed scratch requires non-interactive execution without a terminal")
     root = Path.home() / ".cache" / "theseus-managed-scratch"
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = root.lstat()
@@ -147,6 +197,7 @@ def main():
     try:
         interrupted = []
         process = None
+        suspended = False
 
         termination = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT)
 
@@ -164,12 +215,14 @@ def main():
             send_group(signal.SIGCONT)
 
         def suspend(_signum, _frame):
+            nonlocal suspended
             if not interrupted:
+                suspended = True
                 send_group(signal.SIGSTOP)
-                if not interrupted:
-                    os.kill(os.getpid(), signal.SIGSTOP)
 
         def resume(_signum, _frame):
+            nonlocal suspended
+            suspended = False
             send_group(signal.SIGCONT)
 
         handlers = {sig: relay for sig in termination}
@@ -184,6 +237,8 @@ def main():
                 process = subprocess.Popen(
                     [sys.executable, "-I", "-S", "-c", _GATED_EXEC, str(read_fd), *command],
                     cwd=path, start_new_session=True, pass_fds=(read_fd,))
+                if suspended and not interrupted:
+                    send_group(signal.SIGSTOP)
                 # The launch decision is made with termination delivery masked.
                 # A signal already recorded or pending cancels authorization.
                 # Signals after this decision are ordinary running-child termination.
@@ -230,8 +285,13 @@ def main():
             receipt(data, "PENDING_CLEANUP", reason="process_group_active")
             return 1
         if not same_directory(root, info) or not same_directory(path, identity) or has_mount(path):
+            retained = retained_location(root, info, identity)
+            try:
+                updated = update_relocated_manifest(retained, root, info, identity, data)
+            except OSError:
+                updated = False
             receipt(data, "PENDING_CLEANUP", reason="directory_identity_or_mount_changed",
-                    retained_path=retained_location(root, info, identity),
+                    retained_path=retained, manifest_updated=updated,
                     retained_device=identity.st_dev, retained_inode=identity.st_ino)
             return 1
         if not shutil.rmtree.avoids_symlink_attacks:

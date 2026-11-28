@@ -61,7 +61,9 @@ class ManagedScratchTests(unittest.TestCase):
         self.assertEqual((Path(receipt["path"])/"new").read_text(), "keep")
         retained = Path(receipt["retained_path"])
         self.assertEqual(retained, Path(receipt["path"]).with_name(Path(receipt["path"]).name + "-old"))
-        self.assertTrue((retained / ".theseus-scratch.json").is_file())
+        manifest = json.loads((retained / ".theseus-scratch.json").read_text())
+        self.assertEqual(manifest["path"], str(retained))
+        self.assertEqual(manifest["original_path"], receipt["path"])
 
     def test_sigterm_and_sigint_reach_child_and_retain_scratch(self):
         import signal
@@ -215,9 +217,11 @@ class ManagedScratchTests(unittest.TestCase):
                 self.assertTrue(wait_for(lambda: marker.exists() and marker.stat().st_size > 0))
                 child = int(marker.read_text())
                 proc.send_signal(signal.SIGTSTP)
-                self.assertTrue(wait_for(lambda: state(proc.pid) == "T" and state(child) == "T"))
+                self.assertTrue(wait_for(lambda: state(proc.pid) != "T" and state(child) == "T"))
                 proc.send_signal(signal.SIGCONT)
                 self.assertTrue(wait_for(lambda: state(proc.pid) != "T" and state(child) != "T"))
+                proc.send_signal(signal.SIGTSTP)
+                self.assertTrue(wait_for(lambda: state(child) == "T"))
                 proc.send_signal(signal.SIGTERM)
                 proc.communicate(timeout=4)
                 self.assertEqual(proc.returncode, 128 + signal.SIGTERM)
@@ -231,3 +235,37 @@ class ManagedScratchTests(unittest.TestCase):
                         os.kill(child, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
+
+    def test_interactive_terminal_is_rejected_before_allocation(self):
+        import pty
+        import select
+        import time
+        import signal
+        pid, fd = pty.fork()
+        if pid == 0:
+            os.execve(sys.executable, [sys.executable, str(SCRIPT), "--owner", "example/repo#14",
+                       "--source", "fixture", "--purpose", "test", "--", "true"],
+                      {**os.environ, "HOME": str(self.root)})
+        output = bytearray()
+        deadline = time.monotonic() + 5
+        status = None
+        try:
+            while time.monotonic() < deadline:
+                if select.select([fd], [], [], .05)[0]:
+                    try:
+                        output.extend(os.read(fd, 4096))
+                    except OSError:
+                        pass
+                done, value = os.waitpid(pid, os.WNOHANG)
+                if done:
+                    status = value
+                    break
+            self.assertIsNotNone(status)
+            self.assertEqual(os.waitstatus_to_exitcode(status), 2, output.decode(errors="replace"))
+            self.assertIn(b"non-interactive", output)
+            self.assertFalse((self.root / ".cache" / "theseus-managed-scratch").exists())
+        finally:
+            os.close(fd)
+            if status is None:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
