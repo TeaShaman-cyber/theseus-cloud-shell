@@ -15,7 +15,7 @@ Or use an already downloaded official release archive:
 The installer pins version 0.13.2, source commit 377cc5e3ea87a5fcd3abeece18ac8a24a5c6ddea and exact archive/binary hashes; validates before installing, refuses different existing targets, and verifies installed bytes. No root, package manager, background service, global config or credentials.
 
 - Executable: `$HOME/.local/bin/brain` (0755).
-- Explicit non-secret profiles: `$HOME/.config/theseus/brain-{nous,openrouter,bothub}.yaml` (0600). The placeholder key is not a credential: the corresponding existing exe.dev integration injects its provider-held bearer.
+- Explicit non-secret profiles: `$HOME/.config/theseus/brain-{nous,openrouter,bothub,nim}.yaml` (0600). The placeholder key is not a credential: the corresponding existing exe.dev integration injects its provider-held bearer.
 - Verify version: `$HOME/.local/bin/brain --version`.
 - Offline installer acceptance: `modules/brain/test-install.sh /path/to/pinned-archive`. Repeating installation of identical files is safe; local modifications are refused rather than overwritten.
 
@@ -84,6 +84,7 @@ quota. Do not retry the refused route just because another model succeeded.
 | nous | https://nous.int.exe.xyz/v1/models | Literal :free ID and all reported prices zero |
 | openrouter | https://openrouter.int.exe.xyz/api/v1/models | Literal :free ID, all reported prices zero, text output |
 | bothub | https://bothub-api.int.exe.xyz/v1/models | Explicit :free ID plus independent evidence of free API usage; do not infer zero price from missing pricing |
+| nim | https://nvidi-nim.int.exe.xyz/v1/models | NVIDIA Developer Program hosted free endpoint, exact live model ID and model-specific availability; no :free suffix required |
 
 For Nous or OpenRouter, list eligible IDs before selecting a group:
 
@@ -122,6 +123,42 @@ answers even on PARTIAL, and do not conflate transport completeness with
 scientific correctness. Validate nonempty final content, stop reason, no error
 and exact expected model identity per leg; inspect missing usage separately.
 A full useful response may still be wrong.
+
+### NVIDIA NIM developer profile
+
+Use `BRAIN_CONFIG="$HOME/.config/theseus/brain-nim.yaml"` with the existing
+`nvidi-nim` integration. The user confirms the account is on free developer
+access and explicitly authorizes bounded research and QA consultations.
+This is account-owner evidence, not a billing API readback.
+
+- [NIM developer FAQ](https://docs.api.nvidia.com/nim/docs/product) and
+  [rate-limit FAQ](https://forums.developer.nvidia.com/t/nvidia-nim-faq/300317)
+  establish free prototyping, research, development and testing access;
+  limits vary by model and load. Check the live catalog and individual
+  model's hosted API availability; catalog membership alone is not proof
+  of callable or free inference.
+- [API Trial Terms](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf),
+  sections 1.2–1.4, 2.6 and 3.3: no production use, respect limits and trial
+  terms, no confidential or sensitive inputs. Provider may log or use
+  inputs/outputs as described in the terms. Do not send private history,
+  credentials or personal data. Do not use this route as a production
+  worker, bypass limits, or buy credits automatically.
+- Unlike OpenRouter, NIM model IDs need not have a :free suffix and the
+  catalog does not establish a token tariff. Select documented free
+  hosted endpoints under the developer entitlement. No paid fallback.
+- Live prior QA: MiniMax M3.1 Flash completed both CLI help selection
+  trials (3/4 to 4/4); GLM-5.3 Flash timed out. See
+  [repo-search #223](https://github.com/TeaShaman-cyber/theseus-repo-search-lab/issues/223#issuecomment-7236737402).
+  No automatic retry; a timeout does not establish model unavailability.
+
+Example (after verifying the model page and current catalog):
+
+    export BRAIN_CONFIG="$HOME/.config/theseus/brain-nim.yaml"
+    brain ask --json --timeout 60 --max-output-tokens 4096 \
+      -m minimaxai/minimax-m3.1-flash 'Give a counterexample to this synthetic invariant.'
+
+Apply the same nonempty content, exact model identity and finish-reason
+checks as other profiles. No global default or worker routing change.
 
 ### Dated evidence (2026-11-28)
 
@@ -173,6 +210,6 @@ No default model or Dreaming Worker routing change.
 
 ## Operational boundaries
 
-Each provided profile explicitly sets retry_max=0, timeout 60s, max_input_bytes=65536 and no aliases. Specify literal model IDs and output caps every time. The raw binary is not a policy enforcement sandbox: do not override retries, add aliases/failover, run council, or add tools/extra endpoints without separately establishing scope. The three explicit profiles are independent; do not combine them into a single gateway or fallback chain. Do not use model calls to bypass a prior host or provider refusal. On 429, denial, or uncertain dispatch, retain the receipt and stop that provider round rather than blindly repeating. Private history, secrets and source material require their own explicit permission and provider data-handling decision.
+Each provided profile explicitly sets retry_max=0, timeout 60s, max_input_bytes=65536 and no aliases. Specify literal model IDs and output caps every time. The raw binary is not a policy enforcement sandbox: do not override retries, add aliases/failover, run council, or add tools/extra endpoints without separately establishing scope. The four explicit profiles are independent; do not combine them into a single gateway or fallback chain. Do not use model calls to bypass a prior host or provider refusal. On 429, denial, or uncertain dispatch, retain the receipt and stop that provider round rather than blindly repeating. Private history, secrets and source material require their own explicit permission and provider data-handling decision.
 
 Known upstream issue [brain-cli#1](https://github.com/icheer/brain-cli/issues/1): empty, truncated or incomplete SSE can exit 0. The checks above reject missing/length finish and empty content; partial compare exit 0 is not all-leg success. The checks do not prove semantic truth, backend identity or independent billing. No worker routing, installed plugin or agent permissions are changed.
