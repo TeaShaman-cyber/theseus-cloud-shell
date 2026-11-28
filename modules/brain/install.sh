@@ -9,7 +9,7 @@ archive_sha=e7b4c3b3166b67fa4b3f1d52615d8fdc29e5d38f1f370df13890fe6208131ce1
 binary_sha=8fecef7384ce66e2486f5562a38344f1cb7cbd1a736df6a7d57acd18f8d641cd
 bin="$HOME/.local/bin/brain"
 config_dir="$HOME/.config/theseus"
-providers="nous openrouter bothub"
+providers="nous openrouter bothub nim"
 tmp=$(mktemp -d)
 trap 'rm -rf -- "$tmp"' EXIT
 test "$#" -le 1

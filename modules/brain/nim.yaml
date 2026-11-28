@@ -1,0 +1,8 @@
+# Non-secret profile; exe.dev injects the provider-held NVIDIA credential.
+base_url: https://nvidi-nim.int.exe.xyz/v1
+api_key: synthetic-placeholder
+default_model: minimaxai/minimax-m3.1-flash
+retry_max: 0
+timeout_seconds: 60
+max_input_bytes: 65536
+aliases: {}
