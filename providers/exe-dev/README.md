@@ -72,6 +72,16 @@ printf 'cloudflare_attachment=present cloudflare_accounts_http=%s\n' "$status"
 **Observed disposition (2026-11-20):** `VM_RUNNING=VERIFIED`; `CLOUDFLARE_CONFIGURED=VERIFIED`; `CLOUDFLARE_ATTACHED=VERIFIED`; `GUEST_PROXY_ACCOUNTS_HTTP_200=VERIFIED`; `NATIVE_CHATGPT_ACCOUNT_LIST=VERIFIED_INDEPENDENT`; `MUTATION_SCOPES=UNKNOWN_NOT_TESTED`; `PERSISTENCE_AFTER_VM_REPLACEMENT=UNKNOWN_NOT_TESTED`.
 
 
+### Account-owned workload tokens for GitHub Actions (2026-11-28)
+
+The existing Cloudflare proxy also successfully provisioned a dedicated
+Radar Read account token, verified its exact policy and direct API access,
+and transferred the value to GitHub Actions Secrets via native gh stdin.
+See [Cloudflare account token recipe](cloudflare-account-token-recipe.md)
+for the reusable procedure, credential lifecycle and failure boundaries.
+This is a later, narrower mutation receipt, not proof of arbitrary
+Cloudflare administration or a change to the historical 2026-11-20 receipt.
+
 ## LLM/provider integrations (2026-11-21)
 
 The primary governed VM `theseus-exe-shell-probe` currently reports these provider-facing integrations through Reflection: `openrouter`, `bothub-api`, `groq`, `nvidi-nim`, and `nous`. They are swappable inference routes; none is the architectural authority for Mastra or the dreaming worker.
