@@ -59,3 +59,45 @@ class ManagedScratchTests(unittest.TestCase):
         receipt = json.loads(result.stderr.splitlines()[-1])
         self.assertEqual(receipt["status"], "PENDING_CLEANUP")
         self.assertEqual((Path(receipt["path"])/"new").read_text(), "keep")
+
+    def test_sigterm_and_sigint_reach_child_and_retain_scratch(self):
+        import signal
+        import time
+
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            with self.subTest(signal=sig):
+                marker = self.root / "ready"
+                marker.unlink(missing_ok=True)
+                code = ("import os,signal,time; from pathlib import Path; "
+                        "signal.signal(signal.SIGTERM,lambda *a:exit(23)); "
+                        "signal.signal(signal.SIGINT,lambda *a:exit(23)); "
+                        "Path(os.environ['HOME'],'ready').write_text(str(os.getpid())); "
+                        "time.sleep(30)")
+                env = {**os.environ, "HOME": str(self.root)}
+                with subprocess.Popen([sys.executable, str(SCRIPT), "--owner", "example/repo#14",
+                                       "--source", "fixture", "--purpose", "signal test", "--",
+                                       sys.executable, "-c", code], env=env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+                    deadline = time.monotonic() + 5
+                    child = None
+                    try:
+                        while not marker.exists() and time.monotonic() < deadline:
+                            time.sleep(.01)
+                        child = int(marker.read_text())
+                        process.send_signal(sig)
+                        _, stderr = process.communicate(timeout=3)
+                        self.assertEqual(process.returncode, 128 + sig)
+                        with self.assertRaises(ProcessLookupError):
+                            os.kill(child, 0)
+                        r = json.loads(stderr.splitlines()[-1])
+                        self.assertEqual(r["status"], "PENDING_CLEANUP")
+                        self.assertTrue(Path(r["path"]).exists())
+                    finally:
+                        if child is not None:
+                            try:
+                                os.kill(child, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
+                        if process.poll() is None:
+                            process.kill()
+                            process.wait()

@@ -6,10 +6,12 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 
 def receipt(data, status, **extra):
@@ -71,8 +73,46 @@ def main():
     (path / ".theseus-scratch.json").write_text(json.dumps(data, sort_keys=True) + "\n")
     receipt(data, "PENDING_CLEANUP")
     try:
-        with subprocess.Popen(command, cwd=path, start_new_session=True) as process:
-            code = process.wait()
+        interrupted = []
+        process = None
+
+        def relay(signum, _frame):
+            interrupted.append(signum)
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signum)
+                except ProcessLookupError:
+                    pass
+
+        previous = {sig: signal.signal(sig, relay) for sig in (signal.SIGINT, signal.SIGTERM)}
+        try:
+            process = subprocess.Popen(command, cwd=path, start_new_session=True)
+            if interrupted:
+                relay(interrupted[0], None)
+            while not interrupted:
+                try:
+                    process.wait(timeout=0.2)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            if interrupted:
+                # Bound shutdown even when the command ignores termination.
+                deadline = time.monotonic() + 2
+                while not group_quiet(process.pid) and time.monotonic() < deadline:
+                    process.poll()
+                    time.sleep(0.05)
+                if not group_quiet(process.pid):
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                process.wait()
+                receipt(data, "PENDING_CLEANUP", reason="interrupted", signal=interrupted[0])
+                return 128 + interrupted[0]
+            code = process.returncode
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
         if code != 0:
             receipt(data, "PENDING_CLEANUP", reason="command_failed", exit_code=code)
             return code if code > 0 else 128 - code
