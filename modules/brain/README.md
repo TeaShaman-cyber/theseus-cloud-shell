@@ -125,23 +125,51 @@ A full useful response may still be wrong.
 
 ### Dated evidence (2026-11-28)
 
-- Nous: 3/3 free IDs in catalog; first compare 2/3 full, HY4 length at 2048;
-  separate 4096 probe HY4 completed (2360 reported tokens, 18.099s).
-- OpenRouter: 10 zero-price text :free IDs, initial daily allowance 1000
-  remaining. Two groups of 3 produced five complete answers; Gemma 4 26B
-  explicit upstream Google AI Studio 429, not a demonstrated account-quota
-  failure. Remaining four IDs not tested in this round.
-- BotHub: five catalogued :free IDs, no price fields. Our historical
-  provider-report-derived Grafana metric (last value within 35 days) showed
-  zero CAPS for `nemotron-3-nano-omni-30b-a3b-reasoning:free` and
-  `nemotron-3-ultra-550b-a55b:free`; both returned full responses through Brain.
-  Current per-request billing remains UNKNOWN; the other three candidates are
-  not yet accepted for automatic free selection. Historic zero is not a
-  guarantee of a current tariff. Reconfirm before ongoing use.
+- Nous: 3/3 catalogued free routes produced complete answers; HY4 required
+  4096 output tokens after exhausting the initial 2048 cap.
+- OpenRouter: 8/10 catalogued zero-price text :free routes completed.
+  Both Gemma 4 variants returned upstream Google AI Studio 429.
+  Free-request counter readback: 8 used, 992 remaining out of 1000.
+- BotHub: 4/5 catalogued :free routes completed. The official usage report
+  independently matched all four Brain responses by model and token counts:
+
+  | Model ID | Prompt | Completion | CAPS | RUB |
+  | --- | ---: | ---: | ---: | ---: |
+  | nemotron-3-nano-omni-30b-a3b-reasoning:free | 108 | 1870 | 0 | 0 |
+  | nemotron-3-ultra-550b-a55b:free | 108 | 1310 | 0 | 0 |
+  | nemotron-3.5-lightning:free | 108 | 3496 | 0 | 0 |
+  | nemotron-3.5-super-vl:free | 108 | 1052 | 0 | 0 |
+
+  Gemma 4 31B returned 429 with an error referring to OpenRouter upstream;
+  no charge row was present at readback. Provider diversity does not guarantee
+  independent upstream quotas. The 15 successful provider/model routes are
+  not 15 independent model families.
+
+### BotHub billing readback
+
+The existing workstation collector in
+[theseus-local-lab](https://github.com/TeaShaman-cyber/theseus-local-lab/blob/main/deploy/cost-metrics/bothub-usage-metrics.py)
+uses Python's standard library to fetch and parse the official XLSX from
+`https://bothub.chat/api/v2/transaction/usage-report`, with UTC from/to
+parameters. On the authorized Windows workstation its deployed path is
+`C:/Apps/theseus-metrics/bothub-usage-metrics.py`. Reuse its read_key,
+fetch_report and parse_rows functions for read-only reconciliation; do not
+invoke main merely to read billing, because main rewrites the metric file.
+Keep credentials and raw XLSX local; export only the minimal model, token,
+timestamp and charge fields. Match actual report rows to the experiment;
+missing rows or blank charge fields are UNKNOWN, not zero.
+
+The existing exe.dev `bothub-api` inference proxy returned HTTP404 JSON for
+the finance report path, whereas the workstation collector against the
+finance host returned the XLSX. This is an endpoint/route distinction, not a
+Windows dependency. A separate governed finance integration would need
+explicit authorization and a verified credential boundary; none was created.
+Historical zero charges do not guarantee future tariffs.
 
 See [#42](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/42)
-for exact per-leg experiment receipts. No default model or Dreaming Worker
-routing change.
+for exact per-leg receipts and the
+[final BotHub reconciliation](https://github.com/TeaShaman-cyber/theseus-cloud-shell/issues/42#issuecomment-7236486982).
+No default model or Dreaming Worker routing change.
 
 ## Operational boundaries
 
